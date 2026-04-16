@@ -37,7 +37,6 @@ flowchart TD
     B --> C{Word count 3 or fewer?}
     C -- Yes --> D[(comments_with_less_than_3_strings/contentId.csv)]
     C -- No --> E[(full_comments/contentId.csv)]
-    C -- Blank --> F[Skip row]
     D --> G([count_summary.txt])
     E --> G
 ```
@@ -45,8 +44,8 @@ flowchart TD
 1. **Source CSV** — Raw learner comments with `content_id`, `content_name`, `comment`, and `comment_date` columns.
 2. **Grouping** — Comments are grouped by `content_id` so one output file is produced per course.
 3. **Date Normalisation** — `comment_date` is cleaned to `YYYY-MM-DD` format.
-4. **Short Comments** — Comments with 3 words or fewer are archived in `comments_with_less_than_3_strings/` and excluded from further analysis.
-5. **Full Comments** — Comments with more than 3 words are written to `full_comments/` and fed into subsequent stages.
+4. **Short Comments** — Comments with 3 words or fewer are archived in `comments_with_less_than_3_strings` and excluded from further analysis.
+5. **Full Comments** — Comments with more than 3 words are written to `full_comments` and fed into subsequent stages.
 6. **Count Summary** — A `count_summary.txt` is written to each output directory with per-file row counts.
 
 ---
@@ -61,8 +60,7 @@ flowchart TD
     D -- positive --> E[positive]
     D -- negative --> F[negative]
     D -- neutral --> G[neutral]
-    D -- blank or NaN --> H[neutral - fallback]
-    E & F & G & H --> I([output CSV with predicted sentiment column])
+    E & F & G --> I([output CSV with predicted sentiment column])
     I --> J[course_sentiment_counts.txt]
     I --> K{Ground-truth present?}
     K -- Yes --> L[classification_report.txt per course and global]
@@ -70,9 +68,9 @@ flowchart TD
 ```
 
 1. **Model Loading** — The `cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual` pipeline is loaded from HuggingFace with `truncation=True` and `max_length=512`.
-2. **Batch Inference** — Each CSV in `input_data/` is processed; blank or NaN comments are replaced with `"neutral statement"` before inference.
+2. **Batch Inference** — Each CSV in `input_data` is processed.
 3. **Label Mapping** — Model output labels are normalised to lowercase `positive`, `negative`, or `neutral`.
-4. **Output** — Each CSV is saved to `output/` with a new `predicted sentiment` column appended.
+4. **Output** — Each CSV is saved to `output` with a new `predicted sentiment` column appended.
 5. **Per-course Counts** — Sentiment distribution per course is written to `course_sentiment_counts.txt`.
 6. **Evaluation** — When an `actual sentiment` ground-truth column is present, accuracy, per-class recall, and a confusion matrix are computed and saved.
 
@@ -83,23 +81,18 @@ flowchart TD
 ```mermaid
 flowchart TD
     A([input_data/full_comments]) --> B[Iterate comments row by row]
-    B --> C{Blank or NaN?}
-    C -- Yes --> D[lang=en, score=0.0, labels=UNKNOWN]
-    C -- No --> E[POST to Bhashini ULCA API]
-    E --> F[Parse langPrediction array]
-    F --> G{langCode is unknown?}
-    G -- Yes --> H[Remap to hinglish]
-    G -- No --> I[Use returned langCode]
-    H & I --> J([output CSV with predicted_language, confidence_score, top_predicted_labels, latency])
-    J --> K[Bhashini_summary.txt]
+    B --> c[POST to Bhashini ULCA API]
+    c --> D[Parse langPrediction array]
+    D --> E{langCode is unknown?}
+    E --> F([output CSV with predicted_language, confidence_score, top_predicted_labels, latency])
+    F --> G[Bhashini_summary.txt]
 ```
 
-1. **Scoped Input** — Only `full_comments/` CSVs are processed; short comments are excluded.
+1. **Scoped Input** — Only `full_comments` CSVs are processed; short comments are excluded.
 2. **Blank Handling** — Empty or NaN text defaults to `lang=en` with score `0.0` and `UNKNOWN` labels without making an API call.
 3. **API Call** — Each comment is sent to the Bhashini ULCA `txt-lang-detection` model.
-4. **Remapping** — When Bhashini returns `unknown` as the language code it is remapped to `hinglish`.
-5. **Output Columns** — `predicted_language`, `confidence_score`, `top_predicted_labels`, and `latency` are appended to the CSV.
-6. **Benchmark Summary** — `Bhashini_summary.txt` captures per-file sample counts, average latency, overall throughput, and language distribution.
+4. **Output Columns** — `predicted_language`, `confidence_score`, `top_predicted_labels`, and `latency` are appended to the CSV.
+5. **Benchmark Summary** — `Bhashini_summary.txt` captures per-file sample counts, average latency, overall throughput, and language distribution.
 
 ---
 
@@ -112,8 +105,8 @@ flowchart TD
     B --> POS[Positive comments]
 
     subgraph LOOP_A [Loop A - Per-Comment Analysis]
-        NEG --> NA[Gemini negative_comment_prompt]
-        POS --> PA[Gemini positive_comment_prompt]
+        NEG --> NA[Gemini negative_comment_prompt.yaml]
+        POS --> PA[Gemini positive_comment_prompt.yaml]
         NA --> NO([gemini_analysis/negative/contentId.json])
         PA --> PO([gemini_analysis/positive/contentId.json])
     end
@@ -121,8 +114,8 @@ flowchart TD
     subgraph LOOP_B [Loop B - Category Summary]
         NO --> NS[Group by Issue Category]
         PO --> PS[Group by Positive Theme]
-        NS --> NSP[Gemini negative_summary_action_items prompt]
-        PS --> PSP[Gemini positive_summary prompt]
+        NS --> NSP[Gemini negative_summary_action_items prompt.yaml]
+        PS --> PSP[Gemini positive_summary prompt.yaml]
         NSP --> NSO([negative/contentId_category_summary.json])
         PSP --> PSO([positive/contentId_category_summary.json])
     end
@@ -144,11 +137,11 @@ flowchart TD
 - Normalises `comment_date` to `YYYY-MM-DD`.
 - Writes per-directory `count_summary.txt` files.
 
-### 3.2 Sentiment Analysis Module (`sentiment_analysis_with_confusion_matrix.py`)
+### 3.2 Sentiment Analysis Module (`sentiment_analysis.py`)
 
 - Loads the `cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual` pipeline from HuggingFace.
-- Runs batch inference across all CSVs under `input_data/` recursively.
-- Appends `predicted sentiment` column and saves updated CSVs to `output/`.
+- Runs batch inference across all CSVs under `input_data` recursively.
+- Appends `predicted sentiment` column and saves updated CSVs to `output`.
 - Generates `course_sentiment_counts.txt` and optional per-course and global classification reports.
 
 | Output File | Description |
@@ -176,7 +169,7 @@ flowchart TD
 ### 3.4 Gemini Analysis Module (`gemini_analysis.py`)
 
 - Connects to Vertex AI using `VERTEX_PROJECT_ID` and `VERTEX_LOCATION`.
-- Loads four YAML prompt templates: `negative_comment_prompt`, `positive_comment_prompt`, `negative_summary_action_items`, and `positive_summary`.
+- Loads four YAML prompt templates: `negative_comment_prompt.yaml`, `positive_comment_prompt.yaml`, `negative_summary_action_items.yaml`, and `positive_summary.yaml`.
 - Loop A runs per-comment Gemini calls in parallel (`MAX_WORKERS = 10`).
 - Loop B groups per-comment outputs by category, constructs a summary prompt, and calls Gemini once per course per sentiment.
 - Tracks token usage (`input`, `output`, `thinking`, `total`) per call.
@@ -186,7 +179,7 @@ flowchart TD
 | `negative_comment_prompt.yaml` | Classify and tag each negative comment |
 | `positive_comment_prompt.yaml` | Classify and tag each positive comment |
 | `negative_sumamry_action_items.yaml` | Generate negative category summary with action items |
-| `positive_summary.yaml` | Generate positive theme summary |
+| `positive_summary.yaml` | Generate positive theme summary with action items |
 
 ---
 
