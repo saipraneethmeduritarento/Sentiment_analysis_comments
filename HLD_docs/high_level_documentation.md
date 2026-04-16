@@ -83,9 +83,8 @@ flowchart TD
     A([input_data/full_comments]) --> B[Iterate comments row by row]
     B --> c[POST to Bhashini ULCA API]
     c --> D[Parse langPrediction array]
-    D --> E{langCode is unknown?}
-    E --> F([output CSV with predicted_language, confidence_score, top_predicted_labels, latency])
-    F --> G[Bhashini_summary.txt]
+    D --> E([output CSV with predicted_language, confidence_score, top_predicted_labels, latency])
+    E --> F[Bhashini_summary.txt]
 ```
 
 1. **Scoped Input** — Only `full_comments` CSVs are processed; short comments are excluded.
