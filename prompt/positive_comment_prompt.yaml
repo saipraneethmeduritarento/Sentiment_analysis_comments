@@ -1,0 +1,82 @@
+name: "Positive Feedback Strength Plan Prompt"
+description: "Prompt for mapping positive feedback to specific business strength categories"
+
+v1: |
+  You are an expert sentiment analyst evaluating positive feedback for the iGOT course '{content_name}'.
+
+  The user provided the following comment:
+  "{comment}"
+
+  Based on the comment, please map the feedback to the MOST APPROPRIATE Strength Category from the framework below and return the recommended actions, owner, and priority:
+
+  **Strength Categories:**
+  1. *Content Effectiveness* (Root Cause: Strong Instructional Design & Content Quality)
+     - Owner: Academic + Instructional Design Team | Priority: High
+     - Action Items: Replicate high-rated content patterns, Create standardized content templates, Document best practices, Use as benchmark courses.
+
+  2. *Depth & Coverage* (Root Cause: Well-Designed Curriculum)
+     - Owner: Academic + SME Team | Priority: High
+     - Action Items: Use as curriculum reference model, Expand advanced modules, Maintain depth consistency, Capture SME frameworks.
+
+  3. *Practical Value* (Root Cause: Strong Industry Alignment)
+     - Owner: Content Strategy + SME Team | Priority: High
+     - Action Items: Scale real-world use cases, Highlight job-relevant modules, Partner with industry experts, Promote as career-focused courses.
+
+  4. *Content Structure* (Root Cause: Effective Instructional Structuring)
+     - Owner: Instructional Design Team | Priority: Medium
+     - Action Items: Standardize course structure templates, Replicate sequencing models, Build reusable blueprints, Ensure consistent structure.
+
+  5. *Instructor Effectiveness* (Root Cause: High Faculty Capability)
+     - Owner: Faculty Enablement Team | Priority: High
+     - Action Items: Identify top instructors, Use sessions for training, Conduct knowledge-sharing, Reward high performers.
+
+  6. *Engagement* (Root Cause: Effective Content Delivery Design)
+     - Owner: Content + Faculty Team | Priority: Medium
+     - Action Items: Replicate storytelling formats, Increase interactivity, Standardize engagement techniques, Track engagement benchmarks.
+
+  7. *Examples & Case Studies* (Root Cause: Strong Practical Content Integration)
+     - Owner: Content + SME Team | Priority: High
+     - Action Items: Build case study repository, Reuse high-quality examples, Encourage industry scenarios, Standardize case-based teaching.
+
+  8. *Video & Audio Quality* (Root Cause: High Production Standards)
+     - Owner: Content Production Team | Priority: Medium
+     - Action Items: Maintain production standards, Document best practices, Benchmark high-quality content, Ensure consistency.
+
+  9. *Pace & Content Length* (Root Cause: Optimized Content Delivery)
+     - Owner: Content Strategy + Faculty | Priority: Medium
+     - Action Items: Maintain ideal module duration, Promote micro-learning, Replicate optimal pacing, Use analytics for tuning.
+
+  10. *Platform Experience (UI/UX & Navigation)* (Root Cause: Strong UX Design)
+      - Owner: Product + UX Team | Priority: Medium
+      - Action Items: Retain successful UX patterns, Standardize UI components, Conduct usability benchmarking, Scale intuitive designs.
+
+  11. *Performance & Technical Issues* (Root Cause: Stable Platform Performance)
+      - Owner: Engineering Team | Priority: High
+      - Action Items: Maintain performance benchmarks, Monitor uptime & latency, Scale infra proactively, Continue load testing.
+
+  12. *Assessment Quality* (Root Cause: Strong Evaluation Framework)
+      - Owner: Assessment Design Team | Priority: High
+      - Action Items: Replicate best assessments, Maintain alignment standards, Expand quality question bank, Use as templates.
+
+  13. *Difficulty Level* (Root Cause: Well-Calibrated Assessments)
+      - Owner: Assessment Team | Priority: Medium
+      - Action Items: Maintain difficulty balance, Validate via analytics, Replicate difficulty patterns, Introduce adaptive models.
+
+  14. *Motivation & Engagement Continuity* (Root Cause: Effective Retention Strategy)
+      - Owner: Product + Growth Team | Priority: Medium
+      - Action Items: Scale gamification, Enhance progress tracking, Replicate high-completion journeys, Strengthen engagement loops.
+
+  15. *Support, Policy & Exceptions* (Root Cause: Strong Support & Governance)
+      - Owner: Support + Operations Team | Priority: Low
+      - Action Items: Maintain SLA standards, Document best practices, Ensure transparency, Monitor satisfaction.
+
+  Try your best to map it to one of the 15 categories above. Use category 15 (Support, Policy & Exceptions) only for feedback that does not fit any other category.
+
+  Please provide your final analysis STRICTLY as a valid JSON object with the following exact keys:
+  {{
+    "Strength Category": "[Name of the strength category]",
+    "Root Cause": "[Root cause]",
+    "Recommended Actions": ["[Action 1]", "[Action 2]"],
+    "Owner": "[Owner Name]",
+    "Priority": "[Priority]"
+  }}

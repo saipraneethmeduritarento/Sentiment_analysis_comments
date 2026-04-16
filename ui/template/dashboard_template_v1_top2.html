@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iGOT · Sentiment Analysis Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@500&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d1117;
+    --surface: #f5f3ef;
+    --card: #ffffff;
+    --accent-pos: #1a9e6e;
+    --accent-neg: #c93a3a;
+    --accent-neu: #e09a20;
+    --accent-blue: #2b5ce6;
+    --border: #e2ddd8;
+    --muted: #8a8279;
+    --tag-bg: #eeeae4;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--ink);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand { display:flex; align-items:center; gap:12px; }
+  .topbar-logo {
+    width:32px; height:32px;
+    background: var(--accent-blue);
+    border-radius: 8px;
+    display:grid; place-items:center;
+    font-family:'DM Mono',monospace;
+    font-size:10px; font-weight:500; letter-spacing:-.5px;
+    color:#fff;
+  }
+  .topbar-title { font-size:15px; font-weight:700; letter-spacing:.01em; }
+  .topbar-sub { font-size:11px; color:#8a96a8; font-family:'DM Mono',monospace; }
+  .topbar-meta { display:flex; align-items:center; gap:20px; }
+  .model-pill {
+    font-family:'DM Mono',monospace; font-size:10px;
+    background:#1e2633; color:#6eb5ff;
+    padding:4px 10px; border-radius:20px; border:1px solid #2d3a4d;
+  }
+  .pipeline-badge {
+    font-size:11px; color:#8a96a8;
+    display:flex; align-items:center; gap:6px;
+  }
+  .dot { width:7px;height:7px;border-radius:50%;background:#1a9e6e;animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+  /* LAYOUT */
+  .layout { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 56px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { padding: 0 20px 20px; }
+  .sidebar-label {
+    font-family:'DM Mono',monospace;
+    font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+    color: var(--muted); margin-bottom:10px;
+  }
+  .filter-group { display:flex; flex-direction:column; gap:4px; margin-bottom:20px; }
+  .filter-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; border-radius:8px; cursor:pointer;
+    transition:.15s; border:1.5px solid transparent;
+    font-size:13px; font-weight:700;
+  }
+  .filter-item:hover { background:#f7f5f1; }
+  .filter-item.active { background:#eef2ff; border-color:#c5d0f7; color:var(--accent-blue); font-weight:700; }
+  .filter-item .count {
+    font-family:'DM Mono',monospace; font-size:11px;
+    background: var(--tag-bg); color:var(--muted);
+    padding:2px 7px; border-radius:10px;
+  }
+  .filter-item.active .count { background:#dde5ff; color:var(--accent-blue); }
+
+  .pipeline-steps { display:flex; flex-direction:column; gap:0; }
+  .step {
+    display:flex; align-items:flex-start; gap:12px;
+    padding:10px 12px; position:relative;
+  }
+  .step-num {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    font-family:'DM Mono',monospace; font-size:10px; font-weight:500;
+    display:grid; place-items:center;
+    background:#eeeae4; color:var(--muted);
+    position:relative; z-index:1;
+  }
+  .step.done .step-num { background:var(--accent-pos); color:#fff; }
+  .step.active .step-num { background:var(--accent-blue); color:#fff; animation:pulse 2s infinite; }
+  .step-content {}
+  .step-title { font-size:12px; font-weight:700; line-height:1.3; }
+  .step-desc { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .step::before {
+    content:''; position:absolute; left:22px; top:32px;
+    width:1px; height:calc(100% - 20px);
+    background:var(--border); z-index:0;
+  }
+  .step:last-child::before { display:none; }
+
+  /* MAIN */
+  .main { overflow-y:auto; }
+  .main-inner { padding:28px 32px; max-width:1100px; }
+
+  /* HEADER */
+  .page-header { margin-bottom:28px; }
+  .page-title {
+    font-family:'DM Serif Display', serif;
+    font-size:32px; line-height:1.1; color:var(--ink);
+    margin-bottom:6px;
+  }
+  .page-title em { font-style:italic; color:var(--accent-blue); }
+  .page-sub { font-size:13px; color:var(--muted); }
+
+  /* FILTER TOOLBAR */
+  .toolbar {
+    display:flex; align-items:center; gap:12px; margin-bottom:24px;
+    flex-wrap:wrap;
+  }
+  .toolbar-label { font-size:12px; color:var(--muted); font-weight:700; }
+  .chip {
+    padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700;
+    border:1.5px solid var(--border); background:var(--card);
+    cursor:pointer; transition:.15s;
+  }
+  .chip:hover { border-color:#aaa; }
+  .chip.sel { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .chip.lang { background:#f0f9f5; color:var(--accent-pos); border-color:#b5e0cf; }
+  .chip.lang.sel { background:var(--accent-pos); color:#fff; border-color:var(--accent-pos); }
+  .divider-v { width:1px; height:20px; background:var(--border); }
+  .word-filter-note {
+    font-size:11px; font-family:'DM Mono',monospace;
+    color: var(--accent-neu); background:#fff9ec;
+    padding:4px 10px; border-radius:6px; border:1px solid #f0d795;
+  }
+
+  /* SENTIMENT OVERVIEW CARDS */
+  .sentiment-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+  .sent-card {
+    background:var(--card); border-radius:14px; padding:20px 22px;
+    border:1px solid var(--border);
+    position:relative; overflow:hidden;
+  }
+  .sent-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .sent-card.pos::before { background:var(--accent-pos); }
+  .sent-card.neg::before { background:var(--accent-neg); }
+  .sent-card.neu::before { background:var(--accent-neu); }
+  .sent-label {
+    font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    display:flex; align-items:center; gap:6px; margin-bottom:12px;
+  }
+  .sent-label .icon { font-size:14px; }
+  .sent-card.pos .sent-label { color:var(--accent-pos); }
+  .sent-card.neg .sent-label { color:var(--accent-neg); }
+  .sent-card.neu .sent-label { color:var(--accent-neu); }
+  .sent-count {
+    font-family:'DM Serif Display',serif;
+    font-size:42px; line-height:1; margin-bottom:4px;
+  }
+  .sent-pct {
+    font-family:'DM Mono',monospace; font-size:12px; color:var(--muted);
+  }
+  .sent-bar-wrap { margin-top:14px; background:#f0ede8; border-radius:4px; height:5px; }
+  .sent-bar { height:5px; border-radius:4px; transition:width .8s; }
+  .sent-card.pos .sent-bar { background:var(--accent-pos); width:62%; }
+  .sent-card.neg .sent-bar { background:var(--accent-neg); width:23%; }
+  .sent-card.neu .sent-bar { background:var(--accent-neu); width:15%; }
+
+  /* COURSE TABLE */
+  .section-title {
+    font-family:'DM Serif Display',serif; font-size:20px;
+    margin-bottom:4px;
+  }
+  .section-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+
+  .course-table { width:100%; border-collapse:collapse; margin-bottom:32px; }
+  .course-table th {
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); padding:8px 12px; text-align:left;
+    border-bottom:1.5px solid var(--border); font-weight:500;
+  }
+  .course-table td { padding:12px 12px; border-bottom:1px solid #f0ede8; vertical-align:middle; }
+  .course-table tr:hover td { background:#faf9f7; }
+  .course-name { font-weight:700; font-size:13px; }
+  .course-id { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); margin-top:2px; }
+  .lang-tags { display:flex; gap:4px; flex-wrap:wrap; }
+  .lang-tag {
+    font-size:10px; padding:2px 7px; border-radius:10px;
+    background:#f0f9f5; color:#1a7a54; border:1px solid #c5e8d8;
+    font-family:'DM Mono',monospace;
+  }
+  .lang-tag.warn { background:#fff5e5; color:#b56a00; border-color:#f5d890; }
+  .mini-bar-wrap { display:flex; gap:3px; align-items:center; width:130px; }
+  .mini-seg { height:8px; border-radius:2px; transition:width .6s; }
+  .mini-seg.p { background:var(--accent-pos); }
+  .mini-seg.n { background:var(--accent-neg); }
+  .mini-seg.u { background:var(--accent-neu); }
+  .count-mono {
+    font-family:'DM Mono',monospace; font-size:12px; color:var(--ink);
+  }
+  .neg-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:'DM Mono',monospace; font-size:11px;
+    color:var(--accent-neg); cursor:pointer;
+  }
+  .neg-badge:hover { text-decoration:underline; }
+  .pos-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:'DM Mono',monospace; font-size:11px;
+    color:var(--accent-pos); cursor:pointer;
+  }
+  .pos-badge:hover { text-decoration:underline; }
+  .neu-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:'DM Mono',monospace; font-size:11px;
+    color:var(--accent-neu); cursor:pointer;
+  }
+  .neu-badge:hover { text-decoration:underline; }
+  .status-chip {
+    font-size:10px; padding:3px 8px; border-radius:10px; font-weight:500;
+  }
+  .status-chip.high { background:#ffe9e9; color:#b03030; }
+  .status-chip.med { background:#fff4e0; color:#a06010; }
+  .status-chip.low { background:#e8f9f2; color:#1a7a54; }
+
+  /* NEGATIVE BREAKDOWN */
+  .neg-section { margin-bottom:32px; }
+  .pos-section { margin-bottom:32px; }
+  .strength-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px; position:relative; overflow:hidden; cursor:pointer;
+    transition:.2s;
+  }
+  .strength-card:hover { border-color:#b5dfc8; box-shadow:0 4px 16px rgba(0,0,0,.06); transform:translateY(-1px); }
+  .strength-card::after {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--accent-pos); opacity:.5;
+  }
+  .strength-card:hover::after { opacity:1; }
+  .strength-name { font-size:13px; font-weight:700; margin-bottom:8px; }
+  .strength-count {
+    font-family:'DM Serif Display',serif; font-size:28px;
+    color:var(--accent-pos); line-height:1;
+  }
+  .strength-pct { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); margin-top:2px; }
+  .strength-bar-wrap { margin-top:10px; background:#e8f5ef; border-radius:3px; height:3px; }
+  .strength-bar { height:3px; border-radius:3px; background:var(--accent-pos); }
+  .issue-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .issue-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px; position:relative; overflow:hidden; cursor:pointer;
+    transition:.2s;
+  }
+  .issue-card:hover { border-color:#c5c0ba; box-shadow:0 4px 16px rgba(0,0,0,.06); transform:translateY(-1px); }
+  .issue-card::after {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--accent-neg); opacity:.5;
+  }
+  .issue-card:hover::after { opacity:1; }
+  .issue-name { font-size:13px; font-weight:700; margin-bottom:8px; }
+  .issue-count {
+    font-family:'DM Serif Display',serif; font-size:28px;
+    color:var(--accent-neg); line-height:1;
+  }
+  .issue-pct { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); margin-top:2px; }
+  .issue-bar-wrap { margin-top:10px; background:#f5eded; border-radius:3px; height:3px; }
+  .issue-bar { height:3px; border-radius:3px; background:var(--accent-neg); }
+
+  /* LANGUAGE SKEWNESS */
+  .lang-section { margin-bottom:32px; }
+  .lang-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .lang-card {
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px;
+  }
+  .lang-name { font-size:12px; font-weight:600; margin-bottom:6px; }
+  .lang-count { font-family:'DM Mono',monospace; font-size:20px; font-weight:500; }
+  .lang-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .lang-skew {
+    margin-top:8px; font-size:10px; font-family:'DM Mono',monospace;
+    padding:2px 7px; border-radius:6px; display:inline-block;
+  }
+  .lang-skew.dom { background:#ffe9e9; color:#b03030; }
+  .lang-skew.bal { background:#e8f9f2; color:#1a7a54; }
+  .lang-skew.min { background:#f5f5f5; color:#888; }
+
+  /* LANGUAGE CARD SENTIMENT */
+  .lang-sent-bar { display:flex; gap:2px; height:5px; border-radius:3px; overflow:hidden; margin-top:8px; }
+  .lang-sent-bar .s { height:100%; border-radius:1px; }
+  .lang-sent-bar .s.p { background:var(--accent-pos); }
+  .lang-sent-bar .s.n { background:var(--accent-neg); }
+  .lang-sent-bar .s.u { background:var(--accent-neu); }
+  .lang-sent-counts { display:flex; gap:8px; margin-top:4px; }
+  .lang-sent-counts span { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); }
+
+  /* FOOTER NOTE */
+  .footer-note {
+    background: var(--ink); color:#8a96a8;
+    padding:14px 32px; font-size:11px; font-family:'DM Mono',monospace;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .footer-note a { color:#6eb5ff; text-decoration:none; }
+
+  /* TOOLTIP hover placeholder */
+  [title] { cursor:help; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#d5d0ca; border-radius:3px; }
+
+  /* AI CATEGORY SUMMARY DROPDOWN */
+  .ai-summary-toggle {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 18px; padding: 10px 16px;
+    border: 1.5px dashed var(--border); border-radius: 10px;
+    cursor: pointer; background: var(--card);
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    transition: .15s;
+    user-select: none;
+  }
+  .ai-summary-toggle:hover { border-color: #aaa; color: var(--ink); background: #faf9f7; }
+  .ai-summary-toggle .toggle-icon { font-size: 16px; transition: transform .25s; }
+  .ai-summary-toggle.open .toggle-icon { transform: rotate(180deg); }
+  .ai-summary-toggle .ai-badge {
+    font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 8px;
+    border-radius: 10px; background: #eef2ff; color: var(--accent-blue);
+    border: 1px solid #c5d0f7; margin-left: auto;
+  }
+
+  .ai-summary-panel {
+    display: none; margin-top: 12px;
+    border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .ai-summary-panel.open { display: block; }
+
+  .ai-course-block {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ai-course-block:last-child { border-bottom: none; }
+
+  .ai-course-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 15px; margin-bottom: 4px; color: var(--ink);
+  }
+  .ai-overall-summary {
+    font-size: 13px; color: #444; line-height: 1.6; font-weight: 700;
+    padding: 10px 14px; margin: 10px 0;
+    background: #f8f7f3; border-radius: 8px; border-left: 3px solid var(--accent-blue);
+  }
+  .ai-top-tags {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+  }
+  .ai-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+  .ai-tag.pos { background: #e8f9f2; color: #1a7a54; border: 1px solid #b5e0cf; }
+  .ai-tag.neg { background: #ffe9e9; color: #b03030; border: 1px solid #f5c0c0; }
+  .ai-tag.pri-critical { background: #ffe9e9; color: #b03030; border: 1px solid #f5c0c0; }
+  .ai-tag.pri-high { background: #fff4e0; color: #a06010; border: 1px solid #f5d890; }
+  .ai-tag.pri-medium { background: #eef2ff; color: var(--accent-blue); border: 1px solid #c5d0f7; }
+  .ai-tag.pri-low { background: #f5f5f5; color: #888; border: 1px solid #ddd; }
+
+  .ai-cat-accordion {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .ai-cat-item {
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .ai-cat-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; cursor: pointer; background: #faf9f7;
+    transition: .15s;
+  }
+  .ai-cat-header:hover { background: #f0ede8; }
+  .ai-cat-name { font-size: 13px; font-weight: 700; flex: 1; }
+  .ai-cat-count {
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
+  }
+  .ai-cat-urgency {
+    font-size: 10px; padding: 2px 8px; border-radius: 8px;
+    font-weight: 500; font-family: 'DM Mono', monospace;
+  }
+  .ai-cat-chevron { font-size: 12px; color: var(--muted); transition: transform .2s; }
+  .ai-cat-item.open .ai-cat-chevron { transform: rotate(180deg); }
+
+  .ai-cat-body {
+    display: none; padding: 14px 16px;
+    border-top: 1px solid var(--border); background: #fff;
+  }
+  .ai-cat-item.open .ai-cat-body { display: block; }
+
+  .ai-cat-summary-text {
+    font-size: 13px; color: #444; line-height: 1.6; margin-bottom: 10px; font-weight: 700;
+  }
+  .ai-themes { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+  .ai-theme-chip {
+    font-size: 11px; padding: 2px 9px; border-radius: 10px;
+    background: var(--tag-bg); color: var(--muted); border: 1px solid var(--border);
+  }
+
+  .ai-actions-table {
+    width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px;
+  }
+  .ai-actions-table th {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 6px 10px; text-align: left; border-bottom: 1.5px solid var(--border);
+    font-weight: 500;
+  }
+  .ai-actions-table td {
+    padding: 8px 10px; border-bottom: 1px solid #f0ede8; vertical-align: top;
+  }
+  .ai-actions-table tr:last-child td { border-bottom: none; }
+  .ai-rec-action { font-weight: 700; color: var(--ink); }
+  .ai-rec-owner { color: var(--muted); }
+  .ai-rec-impact { color: #555; font-style: italic; }
+
+  /* Priority tag helpers */
+  .pri-critical { background: #ffe9e9; color: #b03030; border: 1px solid #f5c0c0; }
+  .pri-high { background: #fff4e0; color: #a06010; border: 1px solid #f5d890; }
+  .pri-medium { background: #eef2ff; color: var(--accent-blue); border: 1px solid #c5d0f7; }
+  .pri-low { background: #f5f5f5; color: #888; border: 1px solid #ddd; }
+
+  /* TOP PRIORITY ACTION CARDS (change #2) */
+  .ai-priority-cards { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .ai-priority-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #fff; border-radius: 8px; padding: 10px 14px;
+    border: 1px solid var(--border);
+  }
+  .ai-priority-card.pri-critical { border-color: #f5c0c0; }
+  .ai-priority-card.pri-high { border-color: #f5d890; }
+  .ai-priority-card.pri-medium { border-color: #c5d0f7; }
+  .ai-priority-card .apc-badge { flex-shrink: 0; margin-top: 2px; }
+  .ai-priority-card .apc-body { flex: 1; }
+  .ai-priority-card .apc-action { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.4; }
+  .ai-priority-card .apc-owner { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: 'DM Mono', monospace; }
+
+  /* ACTION TABLE — grouped by category (change #1) */
+  .ai-actions-table .cat-group-header td {
+    background: #f5f3ef; padding: 6px 10px; font-family: 'DM Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
+  }
+  .cat-group-border-critical { border-left: 3px solid #c93a3a !important; }
+  .cat-group-border-high     { border-left: 3px solid #e09a20 !important; }
+  .cat-group-border-medium   { border-left: 3px solid #2b5ce6 !important; }
+  .cat-group-border-low      { border-left: 3px solid #ccc !important; }
+
+  /* STRENGTH / ISSUE CARD TOP-2 ELEVATION (change #6) */
+  .strength-card.top-card { background: #f0faf5; }
+  .strength-card.top-card::after { opacity: 1; background: #1a9e6e; }
+  .strength-card.top-card .strength-count { font-size: 32px; }
+  .issue-card.top-card { background: #fff5f5; }
+  .issue-card.top-card::after { opacity: 1; background: #c93a3a; }
+  .issue-card.top-card .issue-count { font-size: 32px; }
+
+  /* LOW-SIGNAL accordion items (change #7) */
+  .ai-cat-item.low-signal { border-color: #ede9e4; }
+  .ai-cat-item.low-signal .ai-cat-header { color: var(--muted); }
+  .ai-cat-item.low-signal .ai-cat-name { color: var(--muted); font-weight: 700; }
+  .low-signal-badge {
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    color: var(--muted); margin-left: 6px;
+  }
+
+  /* EXPAND ALL toggle (change #5) */
+  .accordion-toggle-bar {
+    display: flex; justify-content: flex-end; margin-bottom: 6px;
+  }
+  .accordion-expand-toggle {
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    color: var(--muted); cursor: pointer; border: none; background: none;
+    padding: 0; text-decoration: underline dotted;
+  }
+  .accordion-expand-toggle:hover { color: var(--ink); }
+
+  /* CROSS-COURSE CALLOUT (change #8) */
+  .ai-cross-course-callout {
+    background: #f0f4ff; border: 1px solid #c5d0f7;
+    border-radius: 10px; padding: 14px 18px; margin-top: 4px;
+  }
+  .ai-cross-course-callout .ccc-label {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: var(--accent-blue); display: block; margin-bottom: 6px;
+  }
+  .ai-cross-course-callout p {
+    font-size: 13px; color: #444; line-height: 1.6; margin: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">iG</div>
+    <div>
+      <div class="topbar-title">iGOT Sentiment Analysis</div>
+      <div class="topbar-sub">Leadership · Course Feedback Pipeline</div>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <div class="model-pill">cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual</div>
+    <div class="pipeline-badge"><div class="dot"></div> Pipeline Active</div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Course Filter -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Course Groups</div>
+      <div class="filter-group" id="sb-courses">
+        <!-- Replaced via JS -->
+      </div>
+
+      <div class="sidebar-label">Sentiment Filter</div>
+      <div class="filter-group" id="sb-sentiment">
+        <!-- Replaced via JS -->
+      </div>
+
+      <div class="sidebar-label">Word Length</div>
+      <div class="filter-group ds-toggles">
+        <div class="filter-item ds-toggle active" data-ds="full">≥ 3 words (analysis set) <span class="count">{{ total_comments }}</span></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="main-inner">
+
+      <!-- HEADER -->
+      <div class="page-header">
+        <div class="page-title">Course Feedback <em>Sentiment</em></div>
+        <div class="page-sub" id="main-sub">{{ total_comments }} responses · Model: twitter-xlm-roberta-base-sentiment-multilingual</div>
+      </div>
+
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <span class="toolbar-label">Language:</span>
+        <!-- Replaced via JS -->
+        <div class="divider-v" id="chip-divider"></div>
+        <div class="word-filter-note">&#9432; All responses in full_comments dataset</div>
+      </div>
+
+      <!-- SENTIMENT OVERVIEW -->
+      <div class="sentiment-row">
+        <div class="sent-card pos">
+          <div class="sent-label"><span class="icon">😊</span> Positive</div>
+          <div class="sent-count">{{ overall_positive_count }}</div>
+          <div class="sent-pct">{{ overall_positive_percent }}% of responses</div>
+          <div class="sent-bar-wrap"><div class="sent-bar" style="width:{{ overall_positive_percent }}%"></div></div>
+        </div>
+        <div class="sent-card neg">
+          <div class="sent-label"><span class="icon">😟</span> Negative</div>
+          <div class="sent-count">{{ overall_negative_count }}</div>
+          <div class="sent-pct">{{ overall_negative_percent }}% of responses</div>
+          <div class="sent-bar-wrap"><div class="sent-bar" style="width:{{ overall_negative_percent }}%"></div></div>
+        </div>
+        <div class="sent-card neu">
+          <div class="sent-label"><span class="icon">😐</span> Neutral</div>
+          <div class="sent-count">{{ overall_neutral_count }}</div>
+          <div class="sent-pct">{{ overall_neutral_percent }}% of responses</div>
+          <div class="sent-bar-wrap"><div class="sent-bar" style="width:{{ overall_neutral_percent }}%"></div></div>
+        </div>
+      </div>
+
+      <!-- COURSE TABLE -->
+      <div class="section-title">Course-wise Breakdown</div>
+      <div class="section-sub">Click on any negative count to drill down into issue categories</div>
+      <table class="course-table">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Languages</th>
+            <th>Responses</th>
+            <th>Sentiment Split</th>
+            <th>Positive</th>
+            <th>Neutral</th>
+            <th>Negative</th>
+            <th>Alert</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in courses %}
+          <tr>
+            <td><div class="course-name">{{ course.name }}</div><div class="course-id">{{ course.id }}</div></td>
+            <td><div class="lang-tags">
+              {% for lang in course.languages %}
+              <span class="lang-tag">{{ lang }}</span>
+              {% endfor %}
+            </div></td>
+            <td><span class="count-mono">{{ course.total_comments }}</span></td>
+            <td>
+              <div class="mini-bar-wrap">
+                <div class="mini-seg p" style="width:{{ course.positive_width }}px"></div>
+                <div class="mini-seg n" style="width:{{ course.negative_width }}px"></div>
+                <div class="mini-seg u" style="width:{{ course.neutral_width }}px"></div>
+              </div>
+            </td>
+            <td><span class="pos-badge" onclick="showSentimentComments('{{ course.id }}', 'positive')" title="View Positive Comments">🔺 {{ course.positive_count }} →</span></td>
+            <td><span class="neu-badge" onclick="showSentimentComments('{{ course.id }}', 'neutral')" title="View Neutral Comments">▪ {{ course.neutral_count }} →</span></td>
+            <td><span class="neg-badge" onclick="showSentimentComments('{{ course.id }}', 'negative')" title="View Negative Comments">🔻 {{ course.negative_count }} →</span></td>
+            <td><span class="status-chip {{ course.alert_class }}">{{ course.alert_label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- LANGUAGE SKEWNESS -->
+      <div class="lang-section">
+        <div class="section-title">Language Distribution & Skewness</div>
+        <div class="section-sub">Dominant languages may influence model confidence · Orange = review for language-specific model</div>
+        <div class="lang-grid">
+          {% for lang in languages %}
+          <div class="lang-card">
+            <div class="lang-name">{{ lang.name }}</div>
+            <div class="lang-count">{{ lang.count }}</div>
+            <div class="lang-sub">{{ lang.percent }}% of corpus</div>
+            <div class="lang-skew {{ lang.skew_class }}">{{ lang.skew_label }}</div>
+            <div class="lang-sent-bar">
+              <div class="s p" style="width:{{ lang.positive_pct }}%"></div>
+              <div class="s n" style="width:{{ lang.negative_pct }}%"></div>
+              <div class="s u" style="width:{{ lang.neutral_pct }}%"></div>
+            </div>
+            <div class="lang-sent-counts">
+              <span style="color:var(--accent-pos)">+ {{ lang.positive_count }}</span>
+              <span style="color:var(--accent-neg)">- {{ lang.negative_count }}</span>
+              <span style="color:var(--accent-neu)">· {{ lang.neutral_count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- POSITIVE BREAKDOWN -->
+      <div class="pos-section">
+        <div class="section-title">Positive Feedback — Strength Categories</div>
+        <div class="section-sub">From {{ overall_positive_count }} positive responses · Sentiment_Analysis_Plan categories</div>
+        <div class="issue-grid">
+          {% for strength in top_strengths %}
+          <div class="strength-card{% if loop.index <= 2 %} top-card{% endif %}">
+            <div class="strength-name">{{ strength.name }}</div>
+            <div class="strength-count">{{ strength.count }}</div>
+            <div class="strength-pct">{{ strength.percent }}% of pos.</div>
+            <div class="strength-bar-wrap"><div class="strength-bar" style="width:{{ strength.percent }}%"></div></div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- AI POSITIVE SUMMARY DROPDOWN -->
+        {% set has_pos_summary = courses | selectattr('pos_category_summary') | list | length > 0 %}
+        {% if has_pos_summary %}
+        <div class="ai-summary-toggle" onclick="toggleAiPanel('ai-pos-panel', this)" id="ai-pos-toggle">
+          <span class="toggle-icon">▼</span>
+          <span>AI-Generated Positive Feedback Summary</span>
+          <span class="ai-badge">✦ Gemini Analysis</span>
+        </div>
+        <div class="ai-summary-panel" id="ai-pos-panel">
+          {% for course in courses %}
+          {% set summary = course.pos_category_summary %}
+          {% if summary and summary.category_summaries %}
+          <div class="ai-course-block" data-course-name="{{ course.name }}">
+            <div class="ai-course-title">{{ course.name }}</div>
+            {% if summary.grouped_summary %}
+            {% if summary.grouped_summary.strengths_summary %}
+            <div class="ai-overall-summary">
+              <strong style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-pos); display:block; margin-bottom:4px;">⭐ Strengths</strong>
+              <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.7; font-weight:700;">
+                {% for bullet in summary.grouped_summary.strengths_summary %}
+                <li>{{ bullet }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% elif summary.grouped_summary.primary_strengths_summary %}
+            <div class="ai-overall-summary">
+              <strong style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-pos); display:block; margin-bottom:4px;">⭐ Primary Strengths</strong>
+              {{ summary.grouped_summary.primary_strengths_summary }}
+            </div>
+            {% endif %}
+            {% if summary.grouped_summary.secondary_strengths_summary %}
+            <div class="ai-overall-summary" style="background:#fafaf8; border-left: 2px dashed #8acfb0; font-size:12px;">
+              <strong style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; color:#1a7a54; display:block; margin-bottom:4px;">Secondary Strengths</strong>
+              {{ summary.grouped_summary.secondary_strengths_summary }}
+            </div>
+            {% endif %}
+            {% endif %}
+            {% if summary.top_strengths %}
+            <div class="ai-top-tags">
+              {% for s in summary.top_strengths %}
+              <span class="ai-tag pos">★ {{ s }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% set pos_all_actions = [] %}
+            {% for cat in summary.category_summaries %}
+              {% if cat.action_items %}
+                {% for ai_item in cat.action_items %}
+                  {% set _ = pos_all_actions.append({'category': cat.category, 'tier': (cat.tier or 'secondary') | lower, 'action': ai_item.action, 'owner': ai_item.owner, 'priority': ai_item.priority, 'expected_impact': ai_item.expected_impact}) %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+            {% if pos_all_actions %}
+            <div style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:8px; margin-top:14px;">Action Plan — Amplify Strengths</div>
+            <table class="ai-actions-table">
+              <thead><tr>
+                <th>Action</th><th>Owner</th><th>Priority</th><th>Expected Impact</th>
+              </tr></thead>
+              <tbody>
+                {% set ns = namespace(prev_cat='') %}
+                {% for item in pos_all_actions %}
+                {% if item.category != ns.prev_cat %}
+                {% set ns.prev_cat = item.category %}
+                <tr class="cat-group-header">
+                  <td colspan="4" style="border-left: 3px solid var(--accent-pos) !important;">
+                    {{ item.category }}
+                    <span class="ai-tag pos" style="margin-left:8px;">{{ item.tier | capitalize }}</span>
+                  </td>
+                </tr>
+                {% endif %}
+                <tr style="border-left: 3px solid var(--accent-pos); border-left-width:3px;">
+                  <td class="ai-rec-action">{{ item.action }}</td>
+                  <td class="ai-rec-owner">{{ item.owner }}</td>
+                  <td><span class="ai-tag {% if item.priority | lower == 'high' %}pri-high{% elif item.priority | lower == 'medium' %}pri-medium{% elif item.priority | lower == 'low' %}pri-low{% else %}pri-medium{% endif %}">{{ item.priority }}</span></td>
+                  <td class="ai-rec-impact">{{ item.expected_impact }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+
+          </div>
+          {% endif %}
+          {% endfor %}
+          <div class="ai-cross-course-callout">
+            <span class="ccc-label">Cross-Course Pattern</span>
+            <p>Both courses share the same primary strength profile — Content Effectiveness and Practical Value dominate positive feedback in similar proportions, suggesting a consistent instructional design strength across iGOT AI courses.</p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- NEGATIVE BREAKDOWN -->
+      <div class="neg-section">
+        <div class="section-title">Negative Feedback — Issue Categories</div>
+        <div class="section-sub">From {{ overall_negative_count }} negative responses · Sentiment_Analysis_Plan categories</div>
+        <div class="issue-grid">
+          {% for issue in top_issues %}
+          <div class="issue-card{% if loop.index <= 2 %} top-card{% endif %}">
+            <div class="issue-name">{{ issue.name }}</div>
+            <div class="issue-count">{{ issue.count }}</div>
+            <div class="issue-pct">{{ issue.percent }}% of neg.</div>
+            <div class="issue-bar-wrap"><div class="issue-bar" style="width:{{ issue.percent }}%"></div></div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- AI NEGATIVE SUMMARY + ACTION ITEMS DROPDOWN -->
+        {% set has_neg_summary = courses | selectattr('neg_category_summary') | list | length > 0 %}
+        {% if has_neg_summary %}
+        <div class="ai-summary-toggle" onclick="toggleAiPanel('ai-neg-panel', this)" id="ai-neg-toggle">
+          <span class="toggle-icon">▼</span>
+          <span>AI-Generated Issues Summary &amp; Action Plan</span>
+          <span class="ai-badge">✦ Gemini Analysis</span>
+        </div>
+        <div class="ai-summary-panel" id="ai-neg-panel">
+          {% for course in courses %}
+          {% set summary = course.neg_category_summary %}
+          {% if summary and summary.category_summaries %}
+          <div class="ai-course-block" data-course-name="{{ course.name }}">
+            <div class="ai-course-title">{{ course.name }}</div>
+            {% if summary.grouped_summary %}
+            {% if summary.grouped_summary.major_issues_summary %}
+            <div class="ai-overall-summary" style="border-left-color:var(--accent-neg);">
+              <strong style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-neg); display:block; margin-bottom:4px;">🔴 Major Issues</strong>
+              {% if summary.grouped_summary.major_issues_summary is string %}
+              {{ summary.grouped_summary.major_issues_summary }}
+              {% else %}
+              <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.7; font-weight:700;">
+                {% for bullet in summary.grouped_summary.major_issues_summary %}
+                <li>{{ bullet }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if summary.grouped_summary.minor_issues_summary %}
+            <div class="ai-overall-summary" style="background:#fffaf9; border-left: 2px dashed #e08080; font-size:12px;">
+              <strong style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; color:#b05050; display:block; margin-bottom:4px;">Minor Issues</strong>
+              {% if summary.grouped_summary.minor_issues_summary is string %}
+              {{ summary.grouped_summary.minor_issues_summary }}
+              {% else %}
+              <ul style="margin:6px 0 0 0; padding-left:18px; font-size:13px; line-height:1.7; font-weight:700;">
+                {% for bullet in summary.grouped_summary.minor_issues_summary %}
+                <li>{{ bullet }}</li>
+                {% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+            {% if summary.top_priority_actions %}
+            <div style="margin-bottom:14px;">
+              <div style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:8px;">Top Priority Actions</div>
+              <div class="ai-priority-cards">
+                {% for tpa in summary.top_priority_actions %}
+                {% set tp = tpa.priority | lower %}
+                <div class="ai-priority-card pri-{{ tp }}">
+                  <div class="apc-badge">
+                    <span class="ai-tag {% if tp == 'critical' %}pri-critical{% elif tp == 'high' %}pri-high{% elif tp == 'medium' %}pri-medium{% else %}pri-low{% endif %}">{{ tpa.priority }}</span>
+                  </div>
+                  <div class="apc-body">
+                    <div class="apc-action">{{ tpa.action }}</div>
+                    <div class="apc-owner">{{ tpa.owner }}</div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- CONSOLIDATED ACTION PLAN — grouped by category -->
+            {% set all_actions = [] %}
+            {% for cat in summary.category_summaries %}
+              {% if cat.action_items %}
+                {% for ai in cat.action_items %}
+                  {% set _ = all_actions.append({'category': cat.category, 'urgency': (cat.urgency or 'low') | lower, 'action': ai.action, 'owner': ai.owner, 'priority': ai.priority, 'expected_impact': ai.expected_impact}) %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+            {% if all_actions %}
+            <div style="font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:8px;">Overall Action Plan</div>
+            <table class="ai-actions-table">
+              <thead><tr>
+                <th>Action</th>
+                <th>Owner</th>
+                <th>Priority</th>
+                <th>Expected Impact</th>
+              </tr></thead>
+              <tbody>
+                {% set ns = namespace(prev_cat='') %}
+                {% for item in all_actions %}
+                {% if item.category != ns.prev_cat %}
+                {% set ns.prev_cat = item.category %}
+                <tr class="cat-group-header">
+                  <td colspan="4" class="cat-group-border-{{ item.urgency }}">
+                    {{ item.category }}
+                    <span class="ai-tag {% if item.urgency == 'critical' %}pri-critical{% elif item.urgency == 'high' %}pri-high{% elif item.urgency == 'medium' %}pri-medium{% else %}pri-low{% endif %}" style="margin-left:8px;">{{ item.urgency | capitalize }}</span>
+                  </td>
+                </tr>
+                {% endif %}
+                <tr class="cat-group-border-{{ item.urgency }}" style="border-left-width:3px;">
+                  <td class="ai-rec-action">{{ item.action }}</td>
+                  <td class="ai-rec-owner">{{ item.owner }}</td>
+                  <td>
+                    {% set ap = item.priority | lower %}
+                    <span class="ai-tag {% if ap == 'critical' %}pri-critical{% elif ap == 'high' %}pri-high{% elif ap == 'medium' %}pri-medium{% else %}pri-low{% endif %}">{{ item.priority }}</span>
+                  </td>
+                  <td class="ai-rec-impact">{{ item.expected_impact }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+          <div class="ai-cross-course-callout">
+            <span class="ccc-label">Cross-Course Pattern</span>
+            <p>Certificate download failures and assessment quality issues appear as major complaint categories in both courses, indicating these are platform-wide problems rather than course-specific ones.</p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+    </div><!-- /main-inner -->
+  </main>
+
+</div><!-- /layout -->
+
+<!-- FOOTER -->
+<div class="footer-note">
+  <span>Model: <a href="https://huggingface.co/cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual" target="_blank">cardiffnlp/twitter-xlm-roberta-base-sentiment-multilingual</a></span>
+  <span>Total responses: {{ total_comments }} · iGOT Leadership · 2026</span>
+</div>
+
+<script>
+  // AI Summary dropdown toggles
+  function toggleAiPanel(panelId, toggleEl) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    toggleEl.classList.toggle('open', !isOpen);
+  }
+
+  function toggleCatItem(itemEl) {
+    itemEl.classList.toggle('open');
+  }
+
+  function toggleAccordionAll(btn, accordionId) {
+    const accordion = document.getElementById(accordionId);
+    if (!accordion) return;
+    const items = accordion.querySelectorAll('.ai-cat-item');
+    const allOpen = Array.from(items).every(el => el.classList.contains('open'));
+    items.forEach(el => el.classList.toggle('open', !allOpen));
+    btn.textContent = allOpen ? 'Expand all' : 'Collapse all';
+  }
+
+  const DATA_FULL = {{ full_json | safe }};
+  
+  let currentDS = DATA_FULL;
+  let currentLang = 'All';
+  let currentCourse = 'All';
+  let currentSentiment = 'All'; // 'All', 'pos', 'neg', 'neu'
+
+  function fmt(n) { return Number(n).toLocaleString(); }
+  function pct(n, t) { return t > 0 ? ((n/t)*100).toFixed(1) : '0.0'; }
+  function parseNum(str) { return parseInt((str||'0').toString().replace(/,/g, '')) || 0; }
+
+  function renderSidebar(ds) {
+    // Course groups
+    const cg = document.getElementById('sb-courses');
+    cg.innerHTML = '<div class="filter-item course-t ' + (currentCourse === 'All' ? 'active' : '') + '" data-val="All">All Courses <span class="count">' + ds.total_course_count + '</span></div>' +
+      ds.course_list.map(c => '<div class="filter-item course-t ' + (currentCourse === c.name ? 'active' : '') + '" data-val="' + c.name + '">' + c.name + ' <span class="count">' + c.count + '</span></div>').join('');
+
+    // Sentiment badge counts — use per-course counts if a course is selected
+    let _sb_pos, _sb_neg, _sb_neu;
+    if (currentCourse !== 'All') {
+      const _cd = ds.courses.find(c => c.name === currentCourse);
+      _sb_pos = _cd ? fmt(_cd.positive_count) : '0';
+      _sb_neg = _cd ? fmt(_cd.negative_count) : '0';
+      _sb_neu = _cd ? fmt(_cd.neutral_count) : '0';
+    } else {
+      _sb_pos = ds.overall_positive_count;
+      _sb_neg = ds.overall_negative_count;
+      _sb_neu = ds.overall_neutral_count;
+    }
+
+    // Sentiment
+    const sg = document.getElementById('sb-sentiment');
+    sg.innerHTML = '<div class="filter-item sent-t ' + (currentSentiment === 'All' ? 'active' : '') + '" data-val="All">All Sentiments</div>' +
+      '<div class="filter-item sent-t ' + (currentSentiment === 'pos' ? 'active' : '') + '" data-val="pos">Positive only <span class="count" style="color:#1a9e6e;background:#e4f5ed;">' + _sb_pos + '</span></div>' +
+      '<div class="filter-item sent-t ' + (currentSentiment === 'neg' ? 'active' : '') + '" data-val="neg">Negative only <span class="count" style="color:#c93a3a;background:#fde8e8;">' + _sb_neg + '</span></div>' +
+      '<div class="filter-item sent-t ' + (currentSentiment === 'neu' ? 'active' : '') + '" data-val="neu">Neutral only <span class="count">' + _sb_neu + '</span></div>';
+
+    // Rebind sidebar clicks
+    document.querySelectorAll('.course-t').forEach(el => {
+       el.addEventListener('click', () => {
+         currentCourse = el.dataset.val;
+         document.querySelectorAll('.course-t').forEach(x => x.classList.remove('active'));
+         el.classList.add('active');
+         applyFilters();
+       });
+    });
+
+    document.querySelectorAll('.sent-t').forEach(el => {
+       el.addEventListener('click', () => {
+         currentSentiment = el.dataset.val;
+         document.querySelectorAll('.sent-t').forEach(x => x.classList.remove('active'));
+         el.classList.add('active');
+         applyFilters();
+       });
+    });
+  }
+
+  function renderLanguageChips(languages) {
+    const tb = document.querySelector('.toolbar');
+    tb.querySelectorAll('.chip.lang').forEach(el => el.remove());
+    
+    let html = '<div class="chip lang' + (currentLang === 'All' ? ' sel' : '') + '">All</div>';
+    languages.forEach(l => {
+      html += '<div class="chip lang' + (currentLang === l.name ? ' sel' : '') + '">' + l.name + '</div>';
+    });
+    
+    const div = document.getElementById('chip-divider');
+    div.insertAdjacentHTML('beforebegin', html);
+
+    document.querySelectorAll('.chip.lang').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip.lang').forEach(c => c.classList.remove('sel'));
+        chip.classList.add('sel');
+        applyLang(chip.textContent.trim());
+      });
+    });
+  }
+
+  function renderOverview(pos, neg, neu, total) {
+    const cards = {pos: '.sent-card.pos', neg: '.sent-card.neg', neu: '.sent-card.neu'};
+    const vals = {pos, neg, neu};
+    Object.keys(cards).forEach(k => {
+      const el = document.querySelector(cards[k]);
+      const val = vals[k];
+      const p = pct(val, total);
+      el.querySelector('.sent-count').textContent = fmt(val);
+      el.querySelector('.sent-pct').textContent = p + '% of responses';
+      el.querySelector('.sent-bar').style.width = p + '%';
+    });
+    document.getElementById('main-sub').textContent =
+      fmt(total) + ' responses \u00b7 Model: twitter-xlm-roberta-base-sentiment-multilingual';
+  }
+
+  function renderCourseTable(courses, sentFilter) {
+    const tbody = document.querySelector('.course-table tbody');
+    
+    let filtered = courses;
+    if (sentFilter === 'pos') filtered = courses.filter(c => (c.pos !== undefined ? c.pos : c.positive_count) > 0);
+    if (sentFilter === 'neg') filtered = courses.filter(c => (c.neg !== undefined ? c.neg : c.negative_count) > 0);
+    if (sentFilter === 'neu') filtered = courses.filter(c => (c.neu !== undefined ? c.neu : c.neutral_count) > 0);
+
+    if (!filtered || filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="padding:12px;color:var(--muted)">No course data found.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = filtered.map(c => {
+      const langs = c.langs ? c.langs.map(l => '<span class="lang-tag">' + l + '</span>').join('') : (c.languages ? c.languages.map(l => '<span class="lang-tag">' + l + '</span>').join('') : '');
+      const negCount = c.neg !== undefined ? c.neg : c.negative_count;
+      const posCount = c.pos !== undefined ? c.pos : c.positive_count;
+      const neuCount = c.neu !== undefined ? c.neu : c.neutral_count;
+      
+      let tot = c.total || parseNum(c.total_comments);
+      if (sentFilter === 'pos') tot = posCount;
+      if (sentFilter === 'neg') tot = negCount;
+      if (sentFilter === 'neu') tot = neuCount;
+
+      let pw = (sentFilter==='All'||sentFilter==='pos') ? (c.pos_w || c.positive_width || 1) : 0;
+      let nw = (sentFilter==='All'||sentFilter==='neg') ? (c.neg_w || c.negative_width || 1) : 0;
+      let uw = (sentFilter==='All'||sentFilter==='neu') ? (c.neu_w || c.neutral_width || 1) : 0;
+      
+      return '<tr>' +
+        '<td><div class="course-name">' + c.name + '</div><div class="course-id">' + c.id + '</div></td>' +
+        '<td><div class="lang-tags">' + langs + '</div></td>' +
+        '<td><span class="count-mono">' + fmt(tot) + '</span></td>' +
+        '<td><div class="mini-bar-wrap">' +
+          '<div class="mini-seg p" style="width:' + pw + 'px; ' + (pw===0?'display:none;':'') + '"></div>' +
+          '<div class="mini-seg n" style="width:' + nw + 'px; ' + (nw===0?'display:none;':'') + '"></div>' +
+          '<div class="mini-seg u" style="width:' + uw + 'px; ' + (uw===0?'display:none;':'') + '"></div>' +
+        '</div></td>' +
+        '<td><span class="pos-badge" style="cursor:pointer;" onclick="showSentimentComments(\'' + c.id + '\', \'positive\')" title="View Positive Comments">\u{1F53A} ' + fmt(posCount) + ' \u2192</span></td>' +
+        '<td><span class="neu-badge" style="cursor:pointer;" onclick="showSentimentComments(\'' + c.id + '\', \'neutral\')" title="View Neutral Comments">\u25AA ' + fmt(neuCount) + ' \u2192</span></td>' +
+        '<td><span class="neg-badge" style="cursor:pointer;" onclick="showSentimentComments(\'' + c.id + '\', \'negative\')" title="View Negative Comments">\u{1F53B} ' + fmt(negCount) + ' \u2192</span></td>' +
+        '<td><span class="status-chip ' + (c.alert||c.alert_class) + '">' + (c.alert_label||c.alert_label) + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderIssues(issues) {
+    const grids = document.querySelectorAll('.neg-section .issue-grid');
+    const grid = grids.length > 0 ? grids[0] : null;
+    if (!grid) return;
+    if (!issues || issues.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:12px">No issue data found.</p>';
+      return;
+    }
+    const total = issues.reduce((s, i) => s + parseNum(i.count), 0);
+    grid.innerHTML = issues.map(i => {
+      const p = pct(parseNum(i.count), total);
+      const safeName = i.name.replace(/'/g, "\\'");
+      return '<div class="issue-card" onclick="showCategoryComments(\'' + safeName + '\', \'issue\')" title="Click to view comments">' +
+        '<div class="issue-name">' + i.name + '</div>' +
+        '<div class="issue-count">' + fmt(parseNum(i.count)) + '</div>' +
+        '<div class="issue-pct">' + p + '% of neg.</div>' +
+        '<div class="issue-bar-wrap"><div class="issue-bar" style="width:' + p + '%"></div></div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderStrengths(strengths) {
+    const grids = document.querySelectorAll('.pos-section .issue-grid');
+    const grid = grids.length > 0 ? grids[0] : null;
+    if (!grid) return;
+    if (!strengths || strengths.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:12px">No strength data found yet.</p>';
+      return;
+    }
+    const total = strengths.reduce((s, i) => s + parseNum(i.count), 0);
+    grid.innerHTML = strengths.map(s => {
+      const p = pct(parseNum(s.count), total);
+      const safeName = s.name.replace(/'/g, "\\'");
+      return '<div class="strength-card" onclick="showCategoryComments(\'' + safeName + '\', \'strength\')" title="Click to view comments">' +
+        '<div class="strength-name">' + s.name + '</div>' +
+        '<div class="strength-count">' + fmt(parseNum(s.count)) + '</div>' +
+        '<div class="strength-pct">' + p + '% of pos.</div>' +
+        '<div class="strength-bar-wrap"><div class="strength-bar" style="width:' + p + '%"></div></div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderLanguageGrid(languages) {
+    const grid = document.querySelector('.lang-grid');
+    if(!languages || languages.length===0) {
+       grid.innerHTML = '<p style="padding:12px;color:#888;">No language data</p>';
+       return;
+    }
+    grid.innerHTML = languages.map(l => {
+      return '<div class="lang-card">' +
+          '<div class="lang-name">' + l.name + '</div>' +
+          '<div class="lang-count">' + l.count + '</div>' +
+          '<div class="lang-sub">' + l.percent + '% of corpus</div>' +
+          '<div class="lang-skew ' + l.skew_class + '">' + l.skew_label + '</div>' +
+          '<div class="lang-sent-bar">' +
+            '<div class="s p" style="width:' + l.positive_pct + '%"></div>' +
+            '<div class="s n" style="width:' + l.negative_pct + '%"></div>' +
+            '<div class="s u" style="width:' + l.neutral_pct + '%"></div>' +
+          '</div>' +
+          '<div class="lang-sent-counts">' +
+            '<span style="color:var(--accent-pos)">+ ' + l.positive_count + '</span>' +
+            '<span style="color:var(--accent-neg)">- ' + l.negative_count + '</span>' +
+            '<span style="color:var(--accent-neu)">\u00b7 ' + l.neutral_count + '</span>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  let currentCoursesData = [];
+
+  function maxW(v, t) { return t > 0 ? Math.max(1, Math.floor((v/t)*120)) : 0; }
+  function alertCls(n, t) { let p = t > 0 ? n/t : 0; return p > 0.3 ? 'high' : (p > 0.15 ? 'med' : 'low'); }
+  function alertLbl(n, t) { let p = t > 0 ? n/t : 0; return p > 0.3 ? 'High' : (p > 0.15 ? 'Medium' : 'Low'); }
+
+  function applyFilters() {
+    let filtered_buckets = currentDS.flat_buckets;
+    
+    // 1. Filter by language
+    if (currentLang !== 'All') {
+        filtered_buckets = filtered_buckets.filter(b => b.lang === currentLang);
+    }
+    
+    // 2. Filter by course
+    if (currentCourse !== 'All') {
+        filtered_buckets = filtered_buckets.filter(b => b.course === currentCourse);
+    }
+    
+    // Now aggregate the current selection
+    let pos = 0, neg = 0, neu = 0;
+    let issues_map = {}; 
+    let strengths_map = {};
+    let lang_map = {}; 
+    let course_map = {}; 
+
+    filtered_buckets.forEach(b => {
+       let b_pos = b.pos, b_neg = b.neg, b_neu = b.neu;
+       if (currentSentiment === 'pos') { b_neg=0; b_neu=0; }
+       if (currentSentiment === 'neg') { b_pos=0; b_neu=0; }
+       if (currentSentiment === 'neu') { b_pos=0; b_neg=0; }
+       
+       pos += b_pos; neg += b_neg; neu += b_neu;
+       
+       // Accumulate languages
+       if (!lang_map[b.lang]) lang_map[b.lang] = {pos:0, neg:0, neu:0, total:0, name: b.lang};
+       lang_map[b.lang].pos += b_pos;
+       lang_map[b.lang].neg += b_neg;
+       lang_map[b.lang].neu += b_neu;
+       lang_map[b.lang].total += (b_pos + b_neg + b_neu);
+
+       // Accumulate courses
+       if (!course_map[b.course]) { 
+           let orig_course = currentDS.courses.find(c => c.name === b.course) || {};
+           course_map[b.course] = {
+             name: b.course, id: b.course_id, 
+             pos:0, neg:0, neu:0, total:0, 
+             languages: orig_course.languages || [], 
+             issues: {},
+             strengths: {},
+             negative_comments: [],
+             positive_comments: [],
+             neutral_comments: []
+           };
+       }
+       course_map[b.course].pos += b_pos;
+       course_map[b.course].neg += b_neg;
+       course_map[b.course].neu += b_neu;
+       course_map[b.course].total += (b_pos + b_neg + b_neu);
+
+       // Accumulate issues (only for negative comments)
+       if (currentSentiment === 'All' || currentSentiment === 'neg') {
+           b.issues.forEach(i => {
+               issues_map[i.name] = (issues_map[i.name] || 0) + i.count;
+               course_map[b.course].issues[i.name] = (course_map[b.course].issues[i.name] || 0) + i.count;
+           });
+           if (b.negative_comments) {
+               course_map[b.course].negative_comments.push(...b.negative_comments);
+           }
+       }
+       if (currentSentiment === 'All' || currentSentiment === 'pos') {
+           if (b.strengths) b.strengths.forEach(s => {
+               strengths_map[s.name] = (strengths_map[s.name] || 0) + s.count;
+               course_map[b.course].strengths[s.name] = (course_map[b.course].strengths[s.name] || 0) + s.count;
+           });
+           if (b.positive_comments) {
+               course_map[b.course].positive_comments.push(...b.positive_comments);
+           }
+       }
+       if (currentSentiment === 'All' || currentSentiment === 'neu') {
+           if (b.neutral_comments) {
+               course_map[b.course].neutral_comments.push(...b.neutral_comments);
+           }
+       }
+    });
+
+    let total = pos + neg + neu;
+
+    let top_issues = Object.keys(issues_map).map(k => ({name: k, count: issues_map[k]}))
+                         .sort((a, b) => b.count - a.count).slice(0, 15);
+
+    let top_strengths = Object.keys(strengths_map).map(k => ({name: k, count: strengths_map[k]}))
+                         .sort((a, b) => b.count - a.count).slice(0, 15);
+
+    let courses = Object.values(course_map).map(c => {
+       let sorted_issues = Object.keys(c.issues).map(k => ({name:k, count: c.issues[k]}))
+                                 .sort((a,b) => b.count - a.count).slice(0,5);
+       let sorted_strengths = Object.keys(c.strengths).map(k => ({name:k, count: c.strengths[k]}))
+                                 .sort((a,b) => b.count - a.count).slice(0,5);
+
+       function dedup(arr) {
+           let out = [], seen = new Set();
+           (arr || []).forEach(nc => {
+               let key = (nc.comment || '') + '|' + (nc.sentiment || '');
+               if (!seen.has(key)) { seen.add(key); out.push(nc); }
+           });
+           return out;
+       }
+
+       return {
+           name: c.name, id: c.id, total: c.total, pos: c.pos, neg: c.neg, neu: c.neu,
+           pos_w: maxW(c.pos, c.total), neg_w: maxW(c.neg, c.total), neu_w: maxW(c.neu, c.total),
+           alert_class: alertCls(c.neg, c.total), alert_label: alertLbl(c.neg, c.total),
+           languages: c.languages,
+           issues: sorted_issues,
+           strengths: sorted_strengths,
+           negative_comments: dedup(c.negative_comments),
+           positive_comments: dedup(c.positive_comments),
+           neutral_comments: dedup(c.neutral_comments)
+       };
+    }).sort((a,b) => b.total - a.total);
+    // Ignore empty courses
+    courses = courses.filter(c => c.total > 0);
+
+    // Patch pos/neg/neu/total with authoritative Python counts when no language filter active
+    if (currentLang === 'All') {
+      courses = courses.map(c => {
+        const auth = currentDS.courses.find(d => d.name === c.name);
+        if (!auth) return c;
+        const _pos = currentSentiment === 'neg' || currentSentiment === 'neu' ? 0 : auth.positive_count;
+        const _neg = currentSentiment === 'pos' || currentSentiment === 'neu' ? 0 : auth.negative_count;
+        const _neu = currentSentiment === 'pos' || currentSentiment === 'neg' ? 0 : auth.neutral_count;
+        const _tot = currentSentiment === 'All' ? parseNum(auth.total_comments)
+                   : currentSentiment === 'pos' ? auth.positive_count
+                   : currentSentiment === 'neg' ? auth.negative_count
+                   : auth.neutral_count;
+        return Object.assign({}, c, {
+          pos: _pos, neg: _neg, neu: _neu, total: _tot,
+          pos_w: maxW(_pos, _tot), neg_w: maxW(_neg, _tot), neu_w: maxW(_neu, _tot),
+          alert_class: alertCls(_neg, _tot), alert_label: alertLbl(_neg, _tot)
+        });
+      });
+    }
+
+    currentCoursesData = courses;
+
+    const CUSTOM_LANG_ORDER = {
+        'English': 1, 'Hindi': 2, 'Telugu': 3, 'Marathi': 4, 'Tamil': 5,
+        'Urdu': 6, 'Odia': 7, 'Unknown': 8, 'Error': 9
+    };
+
+    let langs = Object.values(lang_map).map(l => {
+        let t = l.total;
+        let skew_class='min', skew_label='Low';
+        let pct_val = total > 0 ? (t/total)*100 : 0;
+        if (pct_val > 20) { skew_class='dom'; skew_label = pct_val > 40 ? 'Dominant' : 'High'; }
+        else if (pct_val > 5) { skew_class='bal'; skew_label = 'Moderate'; }
+        
+        return {
+           name: l.name, count: fmt(t), percent: pct_val.toFixed(1),
+           skew_class, skew_label,
+           positive_count: fmt(l.pos), negative_count: fmt(l.neg), neutral_count: fmt(l.neu),
+           positive_pct: t>0 ? Math.round((l.pos/t)*100) : 0,
+           negative_pct: t>0 ? Math.round((l.neg/t)*100) : 0,
+           neutral_pct: t>0 ? Math.round((l.neu/t)*100) : 0
+        };
+    }).filter(l => parseNum(l.count) > 0)
+      .sort((a, b) => {
+        let oA = CUSTOM_LANG_ORDER[a.name] || 99;
+        let oB = CUSTOM_LANG_ORDER[b.name] || 99;
+        return oA - oB || parseNum(b.count) - parseNum(a.count);
+      });
+
+    // When no lang filter active, use authoritative Python-computed language data to avoid flat_buckets drift
+    if (currentLang === 'All' && currentCourse === 'All') {
+      if (currentSentiment === 'All') {
+        langs = currentDS.languages;
+      } else {
+        // Build authoritative per-language counts for the selected sentiment
+        const sentKey = currentSentiment === 'pos' ? 'positive_count'
+                      : currentSentiment === 'neg' ? 'negative_count'
+                      : 'neutral_count';
+        const filteredLangs = currentDS.languages
+          .map(l => ({ name: l.name, cnt: parseNum(l[sentKey]), skew_class: l.skew_class, skew_label: l.skew_label }))
+          .filter(l => l.cnt > 0);
+        const sentTotal = filteredLangs.reduce((s, l) => s + l.cnt, 0) || 1;
+        langs = filteredLangs.map(l => {
+          const pct_val = (l.cnt / sentTotal * 100).toFixed(1);
+          let skew_class = 'min', skew_label = 'Low';
+          if (pct_val > 20) { skew_class = 'dom'; skew_label = pct_val > 40 ? 'Dominant' : 'High'; }
+          else if (pct_val > 5) { skew_class = 'bal'; skew_label = 'Moderate'; }
+          return {
+            name: l.name, count: fmt(l.cnt), percent: pct_val,
+            skew_class, skew_label,
+            positive_count: '0', negative_count: '0', neutral_count: '0',
+            positive_pct: 0, negative_pct: 0, neutral_pct: 0
+          };
+        }).sort((a, b) => {
+            let oA = CUSTOM_LANG_ORDER[a.name] || 99;
+            let oB = CUSTOM_LANG_ORDER[b.name] || 99;
+            return oA - oB || parseNum(b.count) - parseNum(a.count);
+          });
+      }
+    } else if (currentLang === 'All' && currentCourse !== 'All') {
+      // Use per-course language sentiment from Python (authoritative)
+      const _cd = currentDS.courses.find(c => c.name === currentCourse);
+      if (_cd && _cd.course_lang_sentiment) {
+        const cls = _cd.course_lang_sentiment;
+        const sentKey = currentSentiment === 'pos' ? 'positive_count'
+                      : currentSentiment === 'neg' ? 'negative_count'
+                      : 'neutral_count';
+        const entries = Object.keys(cls).map(lang => {
+          const p = cls[lang].positive_count, n = cls[lang].negative_count, u = cls[lang].neutral_count;
+          const cnt = currentSentiment === 'All' ? p+n+u
+                    : currentSentiment === 'pos' ? p
+                    : currentSentiment === 'neg' ? n : u;
+          return { name: lang, cnt, p, n, u };
+        }).filter(l => l.cnt > 0);
+        const sentTotal = entries.reduce((s, l) => s + l.cnt, 0) || 1;
+        langs = entries.map(l => {
+          const pct_val = (l.cnt / sentTotal * 100).toFixed(1);
+          let skew_class = 'min', skew_label = 'Low';
+          if (pct_val > 20) { skew_class = 'dom'; skew_label = pct_val > 40 ? 'Dominant' : 'High'; }
+          else if (pct_val > 5) { skew_class = 'bal'; skew_label = 'Moderate'; }
+          const t = l.p + l.n + l.u || 1;
+          return {
+            name: l.name, count: fmt(l.cnt), percent: pct_val,
+            skew_class, skew_label,
+            positive_count: fmt(l.p), negative_count: fmt(l.n), neutral_count: fmt(l.u),
+            positive_pct: Math.round(l.p/t*100), negative_pct: Math.round(l.n/t*100), neutral_pct: Math.round(l.u/t*100)
+          };
+        }).sort((a, b) => {
+            let oA = CUSTOM_LANG_ORDER[a.name] || 99;
+            let oB = CUSTOM_LANG_ORDER[b.name] || 99;
+            return oA - oB || parseNum(b.count) - parseNum(a.count);
+          });
+      }
+    }
+
+    // Use authoritative counts from course_stats (not flat_buckets) to avoid language-join drift
+    let _ov_pos = pos, _ov_neg = neg, _ov_neu = neu, _ov_total = total;
+    if (currentLang === 'All') {
+      let _true_pos, _true_neg, _true_neu, _true_tot;
+      if (currentCourse === 'All') {
+        _true_pos = parseInt(currentDS.overall_positive_count.replace(/,/g,''));
+        _true_neg = parseInt(currentDS.overall_negative_count.replace(/,/g,''));
+        _true_neu = parseInt(currentDS.overall_neutral_count.replace(/,/g,''));
+        _true_tot = parseInt(currentDS.total_comments.replace(/,/g,''));
+      } else {
+        const _cd = currentDS.courses.find(c => c.name === currentCourse);
+        if (_cd) {
+          _true_pos = _cd.positive_count;
+          _true_neg = _cd.negative_count;
+          _true_neu = _cd.neutral_count;
+          _true_tot = parseNum(_cd.total_comments);
+        }
+      }
+      if (_true_tot !== undefined) {
+        if (currentSentiment === 'All') {
+          _ov_pos = _true_pos; _ov_neg = _true_neg; _ov_neu = _true_neu; _ov_total = _true_tot;
+        } else if (currentSentiment === 'pos') {
+          _ov_pos = _true_pos; _ov_neg = 0; _ov_neu = 0; _ov_total = _true_pos;
+        } else if (currentSentiment === 'neg') {
+          _ov_pos = 0; _ov_neg = _true_neg; _ov_neu = 0; _ov_total = _true_neg;
+        } else if (currentSentiment === 'neu') {
+          _ov_pos = 0; _ov_neg = 0; _ov_neu = _true_neu; _ov_total = _true_neu;
+        }
+      }
+    }
+    renderOverview(_ov_pos, _ov_neg, _ov_neu, _ov_total);
+    renderSidebar(currentDS);
+    renderCourseTable(courses, 'All'); // Courses array intrinsically matches the sentiment filter now
+    renderIssues(top_issues);
+    renderStrengths(top_strengths);
+    renderLanguageGrid(langs);
+    // Filter AI summary blocks by selected course
+    document.querySelectorAll('.ai-course-block[data-course-name]').forEach(block => {
+      const blockCourse = block.dataset.courseName;
+      block.style.display = (currentCourse === 'All' || blockCourse === currentCourse) ? '' : 'none';
+    });
+    document.querySelectorAll('.ai-cross-course-callout').forEach(el => {
+      el.style.display = currentCourse === 'All' ? '' : 'none';
+    });
+  }
+
+  function applyLang(lang) {
+    currentLang = lang;
+    applyFilters();
+  }
+
+  function switchDataset(dsKey) {
+    currentDS = DATA_FULL;
+    
+    // Update dataset label
+    const note = document.querySelector('.word-filter-note');
+    if (note) {
+      note.innerHTML = '&#9432; All responses in full_comments dataset';
+    }
+    
+    
+    if (currentCourse !== 'All' && !currentDS.course_list.find(c => c.name === currentCourse)) {
+      currentCourse = 'All';
+    }
+    renderSidebar(currentDS);
+    
+    if (currentLang !== 'All' && !currentDS.languages.find(l => l.name === currentLang)) {
+        currentLang = 'All';
+    }
+    renderLanguageChips(currentDS.languages);
+    applyFilters();
+  }
+
+  function showCategoryComments(categoryName, type) {
+    const analysisKey = type === 'issue' ? 'Issue Category' : 'Strength Category';
+    const commentsKey = type === 'issue' ? 'negative_comments' : 'positive_comments';
+    const typeLabel = type === 'issue' ? 'Issue' : 'Strength';
+    const accentColor = type === 'issue' ? 'var(--accent-neg)' : 'var(--accent-pos)';
+
+    let allComments = [];
+    currentCoursesData.forEach(c => {
+      (c[commentsKey] || []).forEach(nc => {
+        const cat = nc.analysis && nc.analysis[analysisKey];
+        if (cat === categoryName) {
+          allComments.push(Object.assign({}, nc, {course: c.name}));
+        }
+      });
+    });
+
+    document.getElementById('modalTitle').textContent = typeLabel + ' Category: ' + categoryName + ' (' + allComments.length + ' comments)';
+
+    let html = '';
+    if (allComments.length === 0) {
+      html = '<p style="color:var(--muted);font-size:14px;">No comments found for this category in the current filter selection.</p>';
+    } else {
+      html = '<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;table-layout:fixed;">';
+      html += '<thead style="background:#f5f5f5;"><tr>' +
+              '<th style="padding:10px;border-bottom:1px solid var(--border);width:12%;">Date</th>' +
+              '<th style="padding:10px;border-bottom:1px solid var(--border);width:10%;">Language</th>' +
+              '<th style="padding:10px;border-bottom:1px solid var(--border);width:18%;">Course</th>' +
+              '<th style="padding:10px;border-bottom:1px solid var(--border);">Comment</th>' +
+              '</tr></thead><tbody>';
+      allComments.forEach(nc => {
+        html += '<tr style="border-bottom:1px solid var(--border);">' +
+                '<td style="padding:10px;vertical-align:top;border-right:1px solid #eee;white-space:nowrap;color:var(--muted);">' + (nc.date || '') + '</td>' +
+                '<td style="padding:10px;vertical-align:top;border-right:1px solid #eee;white-space:nowrap;">' + (nc.language || '') + '</td>' +
+                '<td style="padding:10px;vertical-align:top;border-right:1px solid #eee;font-size:11px;color:var(--muted);word-break:break-word;">' + (nc.course || '') + '</td>' +
+                '<td style="padding:10px;vertical-align:top;word-break:break-all;white-space:normal;overflow-wrap:break-word;">' + (nc.comment || '') + '</td>' +
+                '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('actionModal').style.display = 'flex';
+  }
+
+  function showActionItems(courseId) {
+     showSentimentComments(courseId, 'negative');
+  }
+
+  function showSentimentComments(courseId, sentimentType) {
+     const c = currentCoursesData.find(x => x.id === courseId);
+     if (!c) return;
+
+     const labelMap = { positive: 'Positive', negative: 'Negative', neutral: 'Neutral' };
+     const colorMap = { positive: 'var(--accent-pos)', negative: 'var(--accent-neg)', neutral: 'var(--accent-neu)' };
+     const commentsKey = sentimentType + '_comments';
+     const comments = c[commentsKey] || [];
+
+     document.getElementById('modalTitle').textContent = labelMap[sentimentType] + ' Comments: ' + c.name;
+
+     let html = '';
+     if (comments.length === 0) {
+        html = '<p style="color:var(--muted); font-size:14px;">No ' + sentimentType + ' comments found in this selection.</p>';
+     } else {
+         html = '<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; table-layout:fixed;">';
+         
+         if (sentimentType === 'negative') {
+             html += '<thead style="background:#f5f5f5;"><tr><th style="padding:10px; border-bottom:1px solid var(--border); width:12%;">Date</th><th style="padding:10px; border-bottom:1px solid var(--border); width:10%;">Language</th><th style="padding:10px; border-bottom:1px solid var(--border); width:28%;">Comment</th><th style="padding:10px; border-bottom:1px solid var(--border); width:10%;">Sentiment</th><th style="padding:10px; border-bottom:1px solid var(--border); width:40%;">Analysis</th></tr></thead>';
+             html += '<tbody>';
+             comments.forEach(nc => {
+                 let analysisHtml = '';
+                 if (typeof nc.analysis === 'object' && nc.analysis !== null) {
+                     analysisHtml = `<ul style="margin:0; padding-left:16px;">`;
+                     for (let k in nc.analysis) {
+                         let v = nc.analysis[k];
+                         if (Array.isArray(v)) v = v.join(', ');
+                         analysisHtml += `<li><strong>${k}:</strong> ${v}</li>`;
+                     }
+                     analysisHtml += `</ul>`;
+                 } else {
+                     analysisHtml = nc.analysis || '';
+                 }
+                 html += `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap; color:var(--muted);">${nc.date || ''}</td>
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap;">${nc.language || ''}</td>
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; word-break:break-all; white-space:normal; min-width:0; overflow-wrap:break-word;">${nc.comment || ''}</td>
+                            <td style="padding:10px; vertical-align:top; color:var(--accent-neg); font-weight:500; border-right:1px solid #eee; white-space:nowrap;">${nc.sentiment || sentimentType}</td>
+                            <td style="padding:10px; vertical-align:top;">${analysisHtml}</td>
+                          </tr>`;
+             });
+         } else if (sentimentType === 'positive') {
+             html += '<thead style="background:#f5f5f5;"><tr><th style="padding:10px; border-bottom:1px solid var(--border); width:12%;">Date</th><th style="padding:10px; border-bottom:1px solid var(--border); width:10%;">Language</th><th style="padding:10px; border-bottom:1px solid var(--border); width:28%;">Comment</th><th style="padding:10px; border-bottom:1px solid var(--border); width:10%;">Sentiment</th><th style="padding:10px; border-bottom:1px solid var(--border); width:40%;">Strength Analysis</th></tr></thead>';
+             html += '<tbody>';
+             comments.forEach(nc => {
+                 let analysisHtml = '';
+                 if (typeof nc.analysis === 'object' && nc.analysis !== null && Object.keys(nc.analysis).length > 0) {
+                     analysisHtml = `<ul style="margin:0; padding-left:16px;">`;
+                     for (let k in nc.analysis) {
+                         let v = nc.analysis[k];
+                         if (Array.isArray(v)) v = v.join(', ');
+                         analysisHtml += `<li><strong>${k}:</strong> ${v}</li>`;
+                     }
+                     analysisHtml += `</ul>`;
+                 } else {
+                     analysisHtml = '<span style="color:var(--muted)">—</span>';
+                 }
+                 html += `<tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap; color:var(--muted);">${nc.date || ''}</td>
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap;">${nc.language || ''}</td>
+                            <td style="padding:10px; vertical-align:top; border-right:1px solid #eee; word-break:break-all; white-space:normal; min-width:0; overflow-wrap:break-word;">${nc.comment || ''}</td>
+                            <td style="padding:10px; vertical-align:top; color:var(--accent-pos); font-weight:500; border-right:1px solid #eee; white-space:nowrap;">${nc.sentiment || sentimentType}</td>
+                            <td style="padding:10px; vertical-align:top;">${analysisHtml}</td>
+                          </tr>`;
+             });
+         } else {
+             html += '<thead style="background:#f5f5f5;"><tr>' +
+                     '<th style="padding:10px; border-bottom:1px solid var(--border); width:15%;">Date</th>' +
+                     '<th style="padding:10px; border-bottom:1px solid var(--border); width:15%;">Language</th>' +
+                     '<th style="padding:10px; border-bottom:1px solid var(--border); width:50%;">Comment</th>' +
+                     '<th style="padding:10px; border-bottom:1px solid var(--border); width:20%;">Sentiment</th>' +
+                     '</tr></thead><tbody>';
+             comments.forEach(nc => {
+                 html += '<tr style="border-bottom:1px solid var(--border);">' +
+                         '<td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap; color:var(--muted);">' + (nc.date || '') + '</td>' +
+                         '<td style="padding:10px; vertical-align:top; border-right:1px solid #eee; white-space:nowrap;">' + (nc.language || '') + '</td>' +
+                         '<td style="padding:10px; vertical-align:top; border-right:1px solid #eee; word-break:break-all; white-space:normal; min-width:0; overflow-wrap:break-word;">' + (nc.comment || '') + '</td>' +
+                         '<td style="padding:10px; vertical-align:top; font-weight:500; color:' + colorMap[sentimentType] + '; white-space:nowrap;">' + (nc.sentiment || sentimentType) + '</td>' +
+                         '</tr>';
+             });
+         }
+         html += '</tbody></table>';
+     }
+     document.getElementById('modalBody').innerHTML = html;
+     document.getElementById('actionModal').style.display = 'flex';
+  }
+
+  document.querySelectorAll('.ds-toggle').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.ds-toggle').forEach(s => s.classList.remove('active'));
+      item.classList.add('active');
+      switchDataset(item.dataset.ds);
+    });
+  });
+
+  // Initial Paint
+  switchDataset('full');
+</script>
+
+<!-- Action Items Modal -->
+<div id="actionModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div class="modal-content" style="background:#ffffff; width:900px; max-width:95%; max-height:85vh; border-radius:12px; border:1px solid var(--border); display:flex; flex-direction:column; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:16px; color:var(--text-main);" id="modalTitle">Action Items</h3>
+      <button onclick="document.getElementById('actionModal').style.display='none'" style="background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+    <div id="modalBody" style="padding:20px; overflow-y:auto; flex:1;">
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

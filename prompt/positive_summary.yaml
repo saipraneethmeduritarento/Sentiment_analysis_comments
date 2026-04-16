@@ -1,0 +1,167 @@
+name: "Positive Feedback Category Summary Prompt"
+description: "Prompt for generating meaningful AI summaries of positive feedback strength categories using Gemini"
+
+v1: |
+  You are an expert learning experience analyst at iGOT, evaluating positive learner feedback for the course "{content_name}".
+
+  Below is the positive feedback data grouped by strength category. There are {total_count} total positive comments analysed:
+
+  {category_data}
+
+  For each strength category present above, generate a meaningful narrative summary that explains:
+  1. What learners genuinely appreciate about this aspect of the course, drawing from the actual sample comments
+  2. Why this is a strength worth preserving and scaling across other iGOT courses
+  3. How to further amplify this strength and replicate it
+
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_positive_comments": {total_count},
+    "overall_summary": "3-4 sentence comprehensive overview covering: the dominant strengths learners celebrate, which categories have the most praise, the common underlying reasons for satisfaction, and what this collectively signals about the course quality — grounded entirely in the actual feedback data above",
+    "top_strengths": ["Top strength area 1", "Top strength area 2", "Top strength area 3"],
+    "category_summaries": [
+      {{
+        "category": "Strength Category Name",
+        "count": 0,
+        "percent_of_positive": 0.0,
+        "summary": "2-3 sentence meaningful narrative about what learners appreciate in this area, referencing specific comment themes",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "root_cause": "Root Cause"
+      }}
+    ]
+  }}
+
+  IMPORTANT: Ensure each category summary has genuinely insightful narrative based on the actual comments and themes — not generic filler. Order category_summaries by count descending.
+
+v2: |
+  You are an expert learning experience analyst at iGOT, evaluating positive learner feedback for the course "{content_name}".
+ 
+  Below is the positive feedback data grouped by strength category. There are {total_count} total positive comments analysed:
+ 
+  {category_data}
+ 
+  Your task is to produce a GROUPED NARRATIVE SUMMARY — two separate prose paragraphs that synthesize categories by significance tier — plus structured metadata per category (themes, root cause — but no individual per-category summary paragraph).
+ 
+  ---
+ 
+  GROUPING RULES — classify every category into exactly one tier before writing:
+  - "primary" tier   → categories where count >= 10% of {total_count}, OR the single top category by volume even if it falls slightly below 10%.
+  - "secondary" tier → all remaining categories with 5 or more comments that don't qualify as primary.
+  - "excluded"       → categories with fewer than 5 comments — silently omit from both narrative paragraphs.
+ 
+  GROUPED SUMMARY RULES:
+  - Write exactly TWO narrative paragraphs:
+    1. "primary_strengths_summary": 3-4 sentences covering only the primary-tier categories together. Lead with the dominant strength, connect categories that share a common underlying reason for praise (e.g., if Content Effectiveness and Practical Value are both driven by job-relevance, name that shared thread explicitly). Close with what this signals about the course's instructional design. Written as flowing prose — not a list.
+    2. "secondary_strengths_summary": 2-3 sentences covering only the secondary-tier categories together. Describe the supporting strengths and any common thread among them. If there are no secondary-tier categories, set this to null.
+  - Both paragraphs must be grounded in actual comment themes — no generic filler.
+  - Do not repeat the same strength across both paragraphs.
+ 
+  NOISE / LOW-SIGNAL RULE:
+  - If a category's comments are primarily generic gratitude, emoji-only, or single-word praise with no specific detail (e.g., "thanks", "🙏", "good", "nice") — set key_themes to ["low-signal — general appreciation only"], root_cause to "Insufficient signal — general sentiment with no specific praise detail", and amplification_suggestion to null.
+ 
+  AMPLIFICATION RULE — apply selectively, not uniformly:
+  - Only generate an "amplification_suggestion" for the top 3 categories by comment count.
+  - Each suggestion must be specific to the actual feedback themes in that category — not generic advice like "replicate and scale" or "create standardized templates."
+  - Each suggestion must be meaningfully different from the others.
+  - For all other categories set amplification_suggestion to null.
+ 
+  ---
+ 
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_positive_comments": {total_count},
+    "grouped_summary": {{
+      "primary_strengths_summary": "3-4 sentence narrative covering only primary-tier categories — flowing prose, no lists, connecting shared themes, grounded in actual comment themes.",
+      "secondary_strengths_summary": "2-3 sentence narrative covering only secondary-tier categories — or null if none exist."
+    }},
+    "top_strengths": ["Top strength area 1", "Top strength area 2", "Top strength area 3"],
+    "category_summaries": [
+      {{
+        "category": "Strength Category Name",
+        "count": 0,
+        "percent_of_positive": 0.0,
+        "tier": "primary/secondary/excluded",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "root_cause": "The specific underlying reason learners praise this — e.g., 'Content maps directly to learners' government workflows, making abstract AI concepts immediately applicable.' Not a generic label. For excluded/noise categories write: 'Insufficient data.'",
+        "amplification_suggestion": "Only for top 3 categories by count — specific and grounded in actual feedback themes. For all others set to null."
+      }}
+    ]
+  }}
+ 
+  IMPORTANT:
+  - Order category_summaries by count descending.
+  - Both summary paragraphs must be prose only — no bullet points, no bold category labels, no embedded lists.
+  - Amplification suggestions must not repeat the same advice across categories.
+  - The JSON must be valid and parseable. Do not include trailing commas or comments inside the JSON.
+
+v3: |
+  You are an expert learning experience analyst at iGOT, evaluating positive learner feedback for the course "{content_name}".
+
+  Below is the positive feedback data grouped by strength category. There are {total_count} total positive comments analysed:
+
+  {category_data}
+
+  Your task is to produce a GROUPED BULLET-POINT SUMMARY that synthesizes all qualifying categories — plus structured metadata per category (themes — but no individual per-category summary paragraph or root cause).
+
+  ---
+
+  GROUPING RULES — classify every category into exactly one tier before writing:
+  - "primary" tier   → categories where count >= 10% of {total_count}, OR the single top category by volume even if it falls slightly below 10%.
+  - "secondary" tier → all remaining categories with 5 or more comments that don't qualify as primary.
+  - "excluded"       → categories with fewer than 5 comments — silently omit from the summary.
+
+  GROUPED SUMMARY RULES:
+  - Produce a single "strengths_summary" as a JSON array of bullet-point strings (one bullet per distinct strength theme).
+  - Combine both primary and secondary tier categories into this single list — do not separate them.
+  - Each bullet must reference actual comment themes and be specific — no generic filler.
+  - Excluded categories are omitted from the summary.
+
+  NOISE / LOW-SIGNAL RULE:
+  - If a category's comments are primarily generic gratitude, emoji-only, or single-word praise with no specific detail (e.g., "thanks", "🙏", "good", "nice") — set key_themes to ["low-signal — general appreciation only"] and amplification_suggestion to null.
+
+  AMPLIFICATION RULE — apply selectively, not uniformly:
+  - Only generate an "amplification_suggestion" for the top 3 categories by comment count.
+  - Each suggestion must be specific to the actual feedback themes in that category — not generic advice like "replicate and scale" or "create standardized templates."
+  - Each suggestion must be meaningfully different from the others.
+  - For all other categories set amplification_suggestion to null.
+
+  ACTION ITEMS RULE — generate for every non-excluded category:
+  - Produce at least 2 action items per category (excluded categories: omit entirely).
+  - Each action item must be specific and directly tied to the actual feedback themes of that category — not generic.
+  - Action items should focus on HOW to preserve, scale, or deepen this strength — concrete next steps, not observations.
+  - Each action item must have: action (what to do), owner (Content Team / Instructional Designer / Platform Team / Course Lead — pick the most relevant), priority (High / Medium / Low), expected_impact (1 sentence on the benefit).
+
+  ---
+
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_positive_comments": {total_count},
+    "grouped_summary": {{
+      "strengths_summary": ["Bullet point 1 — specific strength grounded in actual comment themes", "Bullet point 2 — another distinct strength", "..."]
+    }},
+    "top_strengths": ["Top strength area 1", "Top strength area 2", "Top strength area 3"],
+    "category_summaries": [
+      {{
+        "category": "Strength Category Name",
+        "count": 0,
+        "percent_of_positive": 0.0,
+        "tier": "primary/secondary/excluded",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "amplification_suggestion": "Only for top 3 categories by count — specific and grounded in actual feedback themes. For all others set to null.",
+        "action_items": [
+          {{
+            "action": "Specific actionable step to preserve or scale this strength",
+            "owner": "Content Team / Instructional Designer / Platform Team / Course Lead",
+            "priority": "High / Medium / Low",
+            "expected_impact": "1-sentence description of the benefit"
+          }}
+        ]
+      }}
+    ]
+  }}
+
+  IMPORTANT:
+  - Order category_summaries by count descending.
+  - strengths_summary must be an array of bullet-point strings — not prose paragraphs.
+  - Amplification suggestions must not repeat the same advice across categories.
+  - Every non-excluded category must have at least 2 action_items. Excluded categories must have action_items set to [].
+  - The JSON must be valid and parseable. Do not include trailing commas or comments inside the JSON.

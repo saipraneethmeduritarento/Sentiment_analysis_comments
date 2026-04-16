@@ -1,0 +1,210 @@
+name: "Negative Feedback Category Summary and Action Items Prompt"
+description: "Prompt for generating meaningful AI summaries and prioritized action plans from negative feedback categories"
+
+v1: |
+  You are an expert learning experience analyst at iGOT, evaluating negative learner feedback for the course "{content_name}".
+
+  Below is the negative feedback data grouped by issue category. There are {total_count} total negative comments analysed:
+
+  {category_data}
+
+  For each issue category present above, generate a meaningful narrative summary and a specific, actionable improvement plan that will measurably reduce this type of complaint on the iGOT platform.
+
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_negative_comments": {total_count},
+    "overall_summary": "3-4 sentence comprehensive overview covering: the most prevalent issues, which categories have the highest volume of complaints, the common root causes across categories, and the collective impact on the learner experience for this course — grounded entirely in the actual feedback data above",
+    "top_priority_actions": [
+      {{
+        "action": "Most critical immediate action step that addresses the highest-impact issue",
+        "category": "Related issue category",
+        "owner": "Responsible team",
+        "priority": "Critical/High/Medium/Low"
+      }}
+    ],
+    "category_summaries": [
+      {{
+        "category": "Issue Category Name",
+        "count": 0,
+        "percent_of_negative": 0.0,
+        "summary": "2-3 sentence meaningful narrative explaining the issue, its root cause, and the tangible impact on learner experience, referencing actual comment themes",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "root_cause": "Root Cause",
+        "urgency": "Critical/High/Medium/Low",
+        "action_items": [
+          {{
+            "action": "Specific, concrete and implementable action step",
+            "owner": "Team or person responsible",
+            "priority": "Critical/High/Medium/Low",
+            "timeline": "Immediate/Short-term (1-2 weeks)/Medium-term (1 month)/Long-term",
+            "expected_impact": "Measurable improvement expected in learner experience after this action"
+          }}
+        ]
+      }}
+    ]
+  }}
+
+  IMPORTANT: Ensure each category summary has genuinely insightful narrative based on the actual comments — not generic filler. Action items must be specific, implementable, and directly address the learner complaints. Order category_summaries by count descending.
+
+v2: |
+  You are an expert learning experience analyst at iGOT, evaluating negative learner feedback for the course "{content_name}".
+ 
+  Below is the negative feedback data grouped by issue category. There are {total_count} total negative comments analysed:
+ 
+  {category_data}
+ 
+  Your task is to produce a GROUPED NARRATIVE SUMMARY — two separate prose paragraphs that synthesize categories by significance tier — plus structured metadata per category (themes, urgency, action items — but no individual per-category summary paragraph).
+ 
+  ---
+ 
+  GROUPING RULES — classify every category into exactly one tier before writing:
+  - "major" tier   → categories where count >= 10% of {total_count} (i.e., count >= {total_count} * 0.10), OR the single top category by volume even if it falls slightly below 10%.
+  - "minor" tier   → all remaining categories with 5 or more comments that don't qualify as major.
+  - "excluded"     → categories with fewer than 5 comments — silently omit from both narrative paragraphs entirely.
+ 
+  GROUPED SUMMARY RULES:
+  - Write exactly TWO narrative paragraphs:
+    1. "major_issues_summary": 3-4 sentences covering only the major-tier categories together. Lead with the highest-volume issue, connect categories that share a root cause (e.g., certificate issues appearing in both Technical and Support categories), and describe the combined impact on learner experience. Written as flowing prose — not a list.
+    2. "minor_issues_summary": 2-3 sentences covering only the minor-tier categories together. Briefly describe the secondary friction points and any common thread among them. If there are no minor-tier categories (all qualifying categories are major), set this to null.
+  - Both paragraphs must be grounded in actual comment themes from the data — no generic filler.
+  - Do not repeat the same issue across both paragraphs.
+ 
+  URGENCY CALIBRATION RULES — follow these strictly, do not deviate:
+  - "Critical" → The single highest-volume category AND the issue directly blocks course completion or certificate access. Only ONE category per course can be Critical.
+  - "High"     → count >= 10% of {total_count}
+  - "Medium"   → count is 5–9% of {total_count}
+  - "Low"      → count < 5% of {total_count}
+  Never assign "Critical" or "High" to any category with fewer than 5 comments.
+ 
+  NOISE / MISCLASSIFICATION RULE:
+  - If a category's comments are primarily single-word responses, emoji-only, or generic phrases with no actionable detail (e.g., "bad", "👎", "not good"), set action_items to [], urgency to "Low", key_themes to ["low-signal — no specific detail"], and root_cause to "Insufficient signal to determine root cause."
+ 
+  ACTION ITEMS RULES:
+  - Action items must be specific to the actual complaints in that category — not generic platform improvement advice.
+  - Do not repeat the same action item across multiple categories. If two categories share a root cause, consolidate the action under the higher-priority category and set action_items to [] for the lower one, noting the overlap in root_cause.
+  - top_priority_actions: exactly 3 entries, de-duplicated, ordered by priority descending.
+ 
+  ---
+ 
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_negative_comments": {total_count},
+    "grouped_summary": {{
+      "major_issues_summary": "3-4 sentence narrative covering only major-tier categories — flowing prose, no lists, grounded in actual comment themes.",
+      "minor_issues_summary": "2-3 sentence narrative covering only minor-tier categories — or null if none exist."
+    }},
+    "top_priority_actions": [
+      {{
+        "action": "Specific, concrete action step addressing the highest-impact issue",
+        "category": "Related issue category",
+        "owner": "Responsible team",
+        "priority": "Critical/High/Medium/Low"
+      }}
+    ],
+    "category_summaries": [
+      {{
+        "category": "Issue Category Name",
+        "count": 0,
+        "percent_of_negative": 0.0,
+        "tier": "major/minor/excluded",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "root_cause": "Specific root cause grounded in the comments. For excluded/noise categories write: 'Insufficient data.'",
+        "urgency": "Critical/High/Medium/Low — per calibration rules above",
+        "action_items": [
+          {{
+            "action": "Specific, concrete action step directly addressing this category's complaints",
+            "owner": "Team or person responsible",
+            "priority": "Critical/High/Medium/Low",
+            "timeline": "Immediate (this week) / Short-term (1-2 weeks) / Medium-term (1 month) / Long-term (1+ months)",
+            "expected_impact": "Measurable outcome — e.g., 'Reduce certificate-related complaints by ~30% within 2 weeks'"
+          }}
+        ]
+      }}
+    ]
+  }}
+ 
+  IMPORTANT:
+  - Order category_summaries by count descending.
+  - Both summary paragraphs must be prose only — no bullet points, no bold category labels, no embedded lists.
+  - The JSON must be valid and parseable. Do not include trailing commas or comments inside the JSON.
+
+v3: |
+  You are an expert learning experience analyst at iGOT, evaluating negative learner feedback for the course "{content_name}".
+
+  Below is the negative feedback data grouped by issue category. There are {total_count} total negative comments analysed:
+
+  {category_data}
+
+  Your task is to produce a GROUPED BULLET-POINT SUMMARY — two separate bullet-point lists for major and minor issue tiers — plus structured metadata per category (themes, urgency, action items — but no individual per-category summary paragraph or root cause).
+
+  ---
+
+  GROUPING RULES — classify every category into exactly one tier before writing:
+  - "major" tier   → categories where count >= 10% of {total_count} (i.e., count >= {total_count} * 0.10), OR the single top category by volume even if it falls slightly below 10%.
+  - "minor" tier   → all remaining categories with 5 or more comments that don't qualify as major.
+  - "excluded"     → categories with fewer than 5 comments — silently omit from both bullet-point lists entirely.
+
+  GROUPED SUMMARY RULES:
+  - Produce TWO bullet-point lists:
+    1. "major_issues_summary": An array of bullet-point strings — one bullet per major-tier category, each describing the issue, its volume, and the impact on learner experience. Grounded in actual comment themes.
+    2. "minor_issues_summary": An array of bullet-point strings — one bullet per minor-tier category, briefly describing the friction point. If there are no minor-tier categories, set this to null.
+  - Each bullet must be specific and grounded in actual comment themes from the data — no generic filler.
+  - Do not repeat the same issue across both lists.
+
+  URGENCY CALIBRATION RULES — follow these strictly, do not deviate:
+  - "Critical" → The single highest-volume category AND the issue directly blocks course completion or certificate access. Only ONE category per course can be Critical.
+  - "High"     → count >= 10% of {total_count}
+  - "Medium"   → count is 5–9% of {total_count}
+  - "Low"      → count < 5% of {total_count}
+  Never assign "Critical" or "High" to any category with fewer than 5 comments.
+
+  NOISE / MISCLASSIFICATION RULE:
+  - If a category's comments are primarily single-word responses, emoji-only, or generic phrases with no actionable detail (e.g., "bad", "👎", "not good"), set action_items to [], urgency to "Low", and key_themes to ["low-signal — no specific detail"].
+
+  ACTION ITEMS RULES:
+  - Action items must be specific to the actual complaints in that category — not generic platform improvement advice.
+  - Do not repeat the same action item across multiple categories. If two categories share a root cause, consolidate the action under the higher-priority category and set action_items to [] for the lower one.
+  - top_priority_actions: exactly 3 entries, de-duplicated, ordered by priority descending.
+
+  ---
+
+  Return STRICTLY as a valid JSON object with the following structure:
+  {{
+    "total_negative_comments": {total_count},
+    "grouped_summary": {{
+      "major_issues_summary": ["Bullet point 1 — specific major issue grounded in actual comment themes", "Bullet point 2 — another major issue", "..."],
+      "minor_issues_summary": ["Bullet point 1 — specific minor issue", "..."]
+    }},
+    "top_priority_actions": [
+      {{
+        "action": "Specific, concrete action step addressing the highest-impact issue",
+        "category": "Related issue category",
+        "owner": "Responsible team",
+        "priority": "Critical/High/Medium/Low"
+      }}
+    ],
+    "category_summaries": [
+      {{
+        "category": "Issue Category Name",
+        "count": 0,
+        "percent_of_negative": 0.0,
+        "tier": "major/minor/excluded",
+        "key_themes": ["theme 1", "theme 2", "theme 3"],
+        "urgency": "Critical/High/Medium/Low — per calibration rules above",
+        "action_items": [
+          {{
+            "action": "Specific, concrete action step directly addressing this category's complaints",
+            "owner": "Team or person responsible",
+            "priority": "Critical/High/Medium/Low",
+            "expected_impact": "Measurable outcome — e.g., 'Reduce certificate-related complaints by ~30% within 2 weeks'"
+          }}
+        ]
+      }}
+    ]
+  }}
+
+  IMPORTANT:
+  - Order category_summaries by count descending.
+  - Both summary lists must be arrays of bullet-point strings — not prose paragraphs.
+  - Set minor_issues_summary to null if there are no minor-tier categories.
+  - The JSON must be valid and parseable. Do not include trailing commas or comments inside the JSON.

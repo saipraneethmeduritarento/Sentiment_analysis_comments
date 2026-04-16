@@ -1,0 +1,211 @@
+name: "Negative Feedback Action Plan Prompt"
+description: "Prompt for mapping negative feedback to specific business action metrics"
+
+v1: |
+  You are an expert sentiment analyst evaluating negative feedback for the iGOT course '{content_name}'.
+
+  The user provided the following comment:
+  "{comment}"
+
+  Based on the comment, please map the feedback to the MOST APPROPRIATE Issue Category from the Action Plan below and return the recommended actions, owner, and priority:
+
+  **Issue Categories:**
+  1. *Bad Audio* (Root Cause: Production Quality)
+     - Owner: Content Production Team | Priority: High
+     - Action Items: Standardize audio recording guidelines, Mandatory audio QA before publishing, Normalize volume levels, Provide re-record option.
+
+  2. *Missing Flow* (Root Cause: Instructional Design)
+     - Owner: Academic / ID Team | Priority: High
+     - Action Items: Introduce instructional design review checklist, Add module roadmap slide at start, Ensure logical sequencing, Conduct peer content audit.
+
+  3. *Technical Issue (Buffering / Logout)* (Root Cause: Platform Stability)
+     - Owner: Platform Engineering | Priority: Critical
+     - Action Items: Conduct performance testing under peak loads, Improve CDN distribution, Session persistence improvements, Add offline download mode.
+
+  4. *Poor Visual Design* (Root Cause: UX / Content Formatting)
+     - Owner: Content + UX Team | Priority: Medium
+     - Action Items: Limit slide text, Use infographics instead of paragraphs, Introduce visual design templates, Accessibility contrast checks.
+
+  5. *Assessment Misalignment* (Root Cause: Evaluation Framework)
+     - Owner: Assessment Design Team | Priority: High
+     - Action Items: Map each question to specific learning objective, Introduce blueprint-based question design, Conduct SME validation of assessments.
+
+  6. *Content Length / Repetitive* (Root Cause: Content Optimization)
+     - Owner: Content Strategy Team | Priority: Medium
+     - Action Items: Enforce module duration cap (8-12 mins), Remove redundant explanations, Convert long modules into micro-learning units.
+
+  7. *Missing Subtitles* (Root Cause: Accessibility)
+     - Owner: Accessibility + Localization Team | Priority: High
+     - Action Items: Make subtitles mandatory, Auto-generate + manual validation, Support multilingual subtitles.
+
+  8. *Poor Navigation* (Root Cause: UX Architecture)
+     - Owner: UX/Product Team | Priority: High
+     - Action Items: Improve breadcrumb navigation, Add progress tracker, Introduce “Resume where you left” feature, Conduct usability testing.
+
+  9. *Outdated Content* (Root Cause: Content Governance)
+     - Owner: Governance + SME Panel | Priority: High
+     - Action Items: Introduce version control system, Annual content review cycle, SME sign-off before renewal, Add “Last Updated On” label.
+
+  10. *Delivery Pace* (Root Cause: Instructor Delivery)
+      - Owner: Faculty Enablement | Priority: Medium
+      - Action Items: Provide faculty training guidelines, Add playback speed control (0.75x–1.5x), Encourage scripted narration.
+
+  11. *Poor UI/UX (Quiz Interface)* (Root Cause: Product Design)
+      - Owner: Product + UI Team | Priority: High
+      - Action Items: Simplify quiz layout, Mobile-first design audit, Improve button visibility and feedback states, A/B testing.
+
+  If it doesn't clearly map to these, you may use "Other Issue" and provide your own brief recommendation.
+  However, try your best to map it to one of the 8 categories if related.
+
+  Please provide your final analysis STRICTLY as a valid JSON object with the following exact keys:
+  {{
+    "Issue Category": "[Name of the issue category]",
+    "Root Cause": "[Root cause]",
+    "Recommended Actions": ["[Action 1]", "[Action 2]"],
+    "Owner": "[Owner Name]",
+    "Priority": "[Priority]"
+  }}
+
+v2: |
+  You are an expert sentiment analyst evaluating negative feedback for the iGOT course '{content_name}'.
+
+  The user provided the following comment:
+  "{comment}"
+
+  Based on the comment, please map the feedback to the MOST APPROPRIATE Issue Category from the Action Plan below and return the recommended actions, owner, and priority:
+
+  **Issue Categories:**
+  1. *Bad Audio* (Root Cause: Production Quality)
+     - Owner: Content Production Team | Priority: High
+     - Action Items: Standardize audio recording guidelines, Mandatory audio QA before publishing, Normalize volume levels, Provide re-record option.
+
+  2. *Missing Flow* (Root Cause: Instructional Design)
+     - Owner: Academic / ID Team | Priority: High
+     - Action Items: Introduce instructional design review checklist, Add module roadmap slide at start, Ensure logical sequencing, Conduct peer content audit.
+
+  3. *Technical Issue (Buffering / Logout)* (Root Cause: Platform Stability)
+     - Owner: Platform Engineering | Priority: Critical
+     - Action Items: Conduct performance testing under peak loads, Improve CDN distribution, Session persistence improvements, Add offline download mode.
+
+  4. *Poor Visual Design* (Root Cause: UX / Content Formatting)
+     - Owner: Content + UX Team | Priority: Medium
+     - Action Items: Limit slide text, Use infographics instead of paragraphs, Introduce visual design templates, Accessibility contrast checks.
+
+  5. *Assessment Misalignment* (Root Cause: Evaluation Framework)
+     - Owner: Assessment Design Team | Priority: High
+     - Action Items: Map each question to specific learning objective, Introduce blueprint-based question design, Conduct SME validation of assessments.
+
+  6. *Content Length / Repetitive* (Root Cause: Content Optimization)
+     - Owner: Content Strategy Team | Priority: Medium
+     - Action Items: Enforce module duration cap (8-12 mins), Remove redundant explanations, Convert long modules into micro-learning units.
+
+  7. *Missing Subtitles* (Root Cause: Accessibility)
+     - Owner: Accessibility + Localization Team | Priority: High
+     - Action Items: Make subtitles mandatory, Auto-generate + manual validation, Support multilingual subtitles.
+
+  8. *Poor Navigation* (Root Cause: UX Architecture)
+     - Owner: UX/Product Team | Priority: High
+     - Action Items: Improve breadcrumb navigation, Add progress tracker, Introduce “Resume where you left” feature, Conduct usability testing.
+
+  9. *Outdated Content* (Root Cause: Content Governance)
+     - Owner: Governance + SME Panel | Priority: High
+     - Action Items: Introduce version control system, Annual content review cycle, SME sign-off before renewal, Add “Last Updated On” label.
+
+  10. *Delivery Pace* (Root Cause: Instructor Delivery)
+      - Owner: Faculty Enablement | Priority: Medium
+      - Action Items: Provide faculty training guidelines, Add playback speed control (0.75x–1.5x), Encourage scripted narration.
+
+  11. *Poor UI/UX (Quiz Interface)* (Root Cause: Product Design)
+      - Owner: Product + UI Team | Priority: High
+      - Action Items: Simplify quiz layout, Mobile-first design audit, Improve button visibility and feedback states, A/B testing.
+
+  However, try your best to map it to one of the 11 categories if related.
+
+  Please provide your final analysis STRICTLY as a valid JSON object with the following exact keys:
+  {{
+    "Issue Category": "[Name of the issue category]",
+    "Root Cause": "[Root cause]",
+    "Recommended Actions": ["[Action 1]", "[Action 2]"],
+    "Owner": "[Owner Name]",
+    "Priority": "[Priority]"
+  }}
+
+v3: |
+  You are an expert sentiment analyst evaluating negative feedback for the iGOT course '{content_name}'.
+
+  The user provided the following comment:
+  "{comment}"
+
+  Based on the comment, please map the feedback to the MOST APPROPRIATE Issue Category from the Action Plan below and return the recommended actions, owner, and priority:
+
+  **Issue Categories:**
+  1. *Content Effectiveness* (Root Cause: Content Design / Instructional Quality)
+     - Owner: Academic + Instructional Design Team | Priority: High
+     - Action Items: Introduce instructional design checklist, Simplify complex concepts using structured flow, Remove redundant content, Ensure periodic content review for accuracy.
+
+  2. *Depth & Coverage* (Root Cause: Curriculum Design Gap)
+     - Owner: Academic + SME Team | Priority: High
+     - Action Items: Map curriculum to competency framework, Add missing topics/modules, Balance beginner vs advanced content, Conduct SME validation.
+
+  3. *Practical Value* (Root Cause: Industry Alignment Gap)
+     - Owner: Content Strategy + SME Team | Priority: High
+     - Action Items: Add real-world use cases, Align content with job roles, Include hands-on exercises, Incorporate industry scenarios.
+
+  4. *Content Structure* (Root Cause: Instructional Structuring Issue)
+     - Owner: Instructional Design Team | Priority: High
+     - Action Items: Define module-wise learning objectives, Ensure logical sequencing, Add summaries and recaps, Introduce course roadmap at start.
+
+  5. *Instructor Effectiveness* (Root Cause: Faculty Capability / Delivery Gap)
+     - Owner: Faculty Enablement Team | Priority: High
+     - Action Items: Conduct train-the-trainer sessions, Provide delivery guidelines, Monitor instructor feedback scores, Enable peer review of sessions.
+
+  6. *Engagement* (Root Cause: Content Delivery Design)
+     - Owner: Content + Faculty Team | Priority: Medium
+     - Action Items: Add storytelling elements, Introduce interactive components (polls/quizzes), Use animations and visuals, Break monotony in delivery.
+
+  7. *Examples & Case Studies* (Root Cause: Content Depth / Practicalization Gap)
+     - Owner: Content + SME Team | Priority: High
+     - Action Items: Add real-world case studies, Include industry-specific examples, Increase variety of examples, Add practical demonstrations.
+
+  8. *Video & Audio Quality* (Root Cause: Production Quality)
+     - Owner: Content Production Team | Priority: High
+     - Action Items: Standardize audio/video recording guidelines, Mandatory production QA before publishing, Improve lighting and sound setup, Ensure subtitle availability and accuracy.
+
+  9. *Pace & Content Length* (Root Cause: Content Optimization / Delivery Issue)
+     - Owner: Content Strategy + Faculty | Priority: Medium
+     - Action Items: Enforce ideal module duration (8-12 mins), Remove repetitive explanations, Enable playback speed controls, Split long modules into micro-learning units.
+
+  10. *Platform Experience (UI/UX & Navigation)* (Root Cause: UX Design / Information Architecture)
+      - Owner: Product + UX Team | Priority: High
+      - Action Items: Improve navigation and menu structure, Redesign quiz interface for usability, Add progress tracking & breadcrumbs, Conduct usability testing.
+
+  11. *Performance & Technical Issues* (Root Cause: Platform Stability / Backend Performance)
+      - Owner: Engineering Team | Priority: Critical
+      - Action Items: Optimize backend performance, Improve CDN and caching, Fix login/session issues, Conduct load and stress testing.
+
+  12. *Assessment Quality* (Root Cause: Evaluation Framework Design)
+      - Owner: Assessment Design Team | Priority: High
+      - Action Items: Align questions with learning objectives, Improve clarity and relevance of questions, Add diverse question formats, Conduct SME validation.
+
+  13. *Difficulty Level* (Root Cause: Assessment Calibration Issue)
+      - Owner: Assessment Team | Priority: Medium
+      - Action Items: Balance easy/medium/hard questions, Align difficulty with learner level, Introduce adaptive difficulty, Analyze learner performance data.
+
+  14. *Motivation & Engagement Continuity* (Root Cause: Retention Strategy Gap)
+      - Owner: Product + Growth Team | Priority: Medium
+      - Action Items: Introduce gamification (badges, streaks), Add progress tracking indicators, Send nudges/reminders, Provide milestone rewards.
+
+  15. *Support, Policy & Exceptions* (Root Cause: Support / Governance / Policy Issues)
+      - Owner: Support + Operations Team | Priority: Medium
+      - Action Items: Strengthen support response SLAs, Clarify refund/certification policies, Create escalation workflows, Track and analyze recurring complaints.
+
+  Try your best to map it to one of the 15 categories above. Use category 15 (Support, Policy & Exceptions) only for feedback that does not fit any other category.
+
+  Please provide your final analysis STRICTLY as a valid JSON object with the following exact keys:
+  {{
+    "Issue Category": "[Name of the issue category]",
+    "Root Cause": "[Root cause]",
+    "Recommended Actions": ["[Action 1]", "[Action 2]"],
+    "Owner": "[Owner Name]",
+    "Priority": "[Priority]"
+  }}
