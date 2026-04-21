@@ -8,6 +8,13 @@ This document outlines a high-level design for the iGOT Sentiment Analysis Pipel
 
 ## 2. Architecture
 
+```mermaid
+flowchart LR
+    A([Comment Input]) --> B[Preprocessing] --> C{Word Count} -- "<3 words" --> D([Discard])
+    C -- "≥3 words" --> E[Language Detection] --> F[Sentiment Analysis] --> G{Sentiment} -- Positive --> H[Positive Classification] --> K([Output])
+    G -- Negative --> I[Negative Classification] --> K
+```
+
 ### 2.1 System Components
 
 1. **Data Preparation Script** — Reads raw learner comments, groups them by course, normalises dates, and splits comments into short (≤ 3 words) and full-length buckets.
@@ -165,6 +172,39 @@ flowchart TD
 | Task | `txt-lang-detection` |
 | Auth | `BHASHINI_USER_ID` + `BHASHINI_AUTH_TOKEN` from `.env` |
 
+#### Bhashini ULCA API Request Flow
+
+```mermaid
+sequenceDiagram
+    participant Script as bhashini_lang_detect.py
+    participant API as Bhashini ULCA API
+
+    Script->>API: POST /ulca/apis/v0/model/compute
+    Note over Script,API: Headers: Authorization (BHASHINI_AUTH_TOKEN),<br/>content-type: application/json,<br/>origin: https://bhashini.gov.in
+    Note over Script,API: Body: { modelId, task: "txt-lang-detection",<br/>input: [{ source: text }], userId }
+    API-->>Script: 200 OK
+    Note over Script,API: Body: { output: [{ langPrediction:<br/>[{ langCode, langScore }, ...] }] }
+    Script->>Script: Sort langPrediction by langScore desc
+    Script->>Script: Append columns to DataFrame row
+    Script->>Script: Save enriched CSV to output/language_detection/bhashini/full_comments/
+```
+
+**Request payload fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `modelId` | string | Fixed model identifier `631736990154d6459973318e` |
+| `task` | string | Always `txt-lang-detection` |
+| `input[].source` | string | Raw comment text sent for detection |
+| `userId` | string | `BHASHINI_USER_ID` from `.env` |
+
+**Response fields used:**
+
+| Field | Description |
+|---|---|
+| `output[0].langPrediction[].langCode` | ISO language code predicted |
+| `output[0].langPrediction[].langScore` | Confidence score (0.0 – 1.0) |
+
 ### 3.4 Gemini Analysis Module (`gemini_analysis.py`)
 
 - Connects to Vertex AI using `VERTEX_PROJECT_ID` and `VERTEX_LOCATION`.
@@ -179,6 +219,69 @@ flowchart TD
 | `positive_comment_prompt.yaml` | Classify and tag each positive comment |
 | `negative_sumamry_action_items.yaml` | Generate negative category summary with action items |
 | `positive_summary.yaml` | Generate positive theme summary with action items |
+
+#### Gemini (Vertex AI) API Request Flow — Loop A (Per-Comment)
+
+```mermaid
+sequenceDiagram
+    participant Script as gemini_analysis.py
+    participant Pool as ThreadPoolExecutor (MAX_WORKERS=10)
+    participant Client as genai.Client (Vertex AI)
+    participant Gemini as Gemini API
+
+    Script->>Script: Load YAML prompt template (negative / positive)
+    Script->>Script: Split CSV into negative / positive subsets
+    Script->>Script: Skip comments with existing output files (resume)
+    Script->>Pool: Submit comment batches (up to 10 parallel threads)
+
+    loop Per comment (parallel)
+        Pool->>Client: generate_content(model, prompt + comment text,<br/>config: { temperature: 0.0,<br/>response_mime_type: "application/json" })
+        Client->>Gemini: HTTPS POST to Vertex AI endpoint
+        Note over Client,Gemini: Auth: Application Default Credentials (ADC)<br/>Project: VERTEX_PROJECT_ID, Location: VERTEX_LOCATION
+        Gemini-->>Client: { candidates: [{ content: { parts: [{ text: JSON }] } }],<br/>usageMetadata: { promptTokenCount,<br/>candidatesTokenCount, thoughtsTokenCount,<br/>totalTokenCount } }
+        Client-->>Pool: response object
+        Pool->>Pool: json.loads(response.text)
+        Pool-->>Script: { structured comment result }, { token usage dict }
+    end
+
+    Script->>Script: Write per-comment results to<br/>gemini_analysis/negative|positive/contentId.json
+```
+
+#### Gemini (Vertex AI) API Request Flow — Loop B (Category Summary)
+
+```mermaid
+sequenceDiagram
+    participant Script as gemini_analysis.py
+    participant Client as genai.Client (Vertex AI)
+    participant Gemini as Gemini API
+
+    Script->>Script: Load per-comment JSON (Loop A output)
+    Script->>Script: Group comments by Issue Category / Positive Theme
+    Script->>Script: Build summary prompt (counts, %, root causes,<br/>owners, sample comments per category)
+    Script->>Client: generate_content(model, summary prompt,<br/>config: { temperature: 0.0,<br/>response_mime_type: "application/json" })
+    Client->>Gemini: HTTPS POST to Vertex AI endpoint
+    Gemini-->>Client: { candidates: [{ content: JSON summary }],<br/>usageMetadata: { token counts } }
+    Client-->>Script: response object
+    Script->>Script: json.loads(response.text)
+    Script->>Script: Write to gemini_analysis/negative|positive/contentId_category_summary.json
+```
+
+**`generate_content` configuration:**
+
+| Parameter | Value | Description |
+|---|---|---|
+| `model` | `GEMINI_MODEL` from `.env` (default: `gemini-2.5-flash`) | Gemini model version |
+| `temperature` | `0.0` | Deterministic output for consistent classification |
+| `response_mime_type` | `application/json` | Forces structured JSON response |
+
+**Response token usage fields tracked:**
+
+| Field | `usage_metadata` attribute |
+|---|---|
+| `input` | `prompt_token_count` |
+| `output` | `candidates_token_count` |
+| `thinking` | `thoughts_token_count` |
+| `total` | `total_token_count` |
 
 ---
 
